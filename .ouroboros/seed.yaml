@@ -1,0 +1,147 @@
+seed:
+  id: seed_038a4139f15f
+  version: 1.0.1
+  title: PolySyntax multilingual reading transition
+  source_interview: interview_20260813_061207
+
+goal: >
+  Rebrand the existing TechPulse demo as PolySyntax and let readers switch the
+  React reconciliation article among English, Korean, and Japanese without
+  losing their reading position or seeing mixed-language article content.
+
+context:
+  product: PolySyntax
+  stack: [Next.js 16, React 19, TypeScript strict, Tailwind CSS 4, Zustand, react-markdown]
+  existing_content:
+    article_id: react-reconciliation
+    languages: [en, ko, ja]
+    markdown_source: public/blog/
+    metadata_source: src/content/blog/metadata.ts
+  repository_state: Preserve all unrelated uncommitted user changes.
+
+constraints:
+  - Reuse the existing language selector, Zustand store, metadata model, and Markdown files.
+  - Do not add URL locale routing, a side-by-side comparison view, prefetching, or a custom content cache.
+  - Use the browser HTTP cache only.
+  - Do not rename package identifiers, routes, storage keys, or internal IDs unless required for the accepted behavior.
+  - Do not include the README overhaul or repository-wide lint cleanup in this change.
+  - A language transition is measured from the user's latest language selection.
+  - A response completing at or after 5000 ms is a timeout, not a success.
+  - Do not prescribe a particular cancellation or request-token implementation; only the observable latest-request-wins behavior is required.
+
+language_resolution:
+  storage_key: language-storage
+  allowed_values: [en, ko, ja]
+  priority:
+    - A valid persisted value from the existing store.
+    - Otherwise the first available browser preference from navigator.languages[0], falling back to navigator.language.
+    - Otherwise English.
+  normalization:
+    ko: ko
+    ja: ja
+    en: en
+    other: en
+  invalid_or_malformed_storage: Treat as absent and continue to browser preference resolution.
+  unavailable_browser_api: Use English.
+
+acceptance_criteria:
+  - id: AC-1
+    title: PolySyntax brand is visible
+    given: The application is opened on any existing route.
+    when: The page renders.
+    then:
+      - User-visible product naming and document metadata use "PolySyntax", not "TechPulse".
+      - The home intro or hero displays the exact tagline "One frontend idea, three languages."
+      - Package names, routes, storage keys, and unrelated internal identifiers remain unchanged.
+
+  - id: AC-2
+    title: Initial language resolves deterministically
+    given: The application initializes in a browser.
+    when: The language store hydrates.
+    then:
+      - A valid persisted en, ko, or ja value wins.
+      - Invalid JSON, a missing language field, or any value outside en, ko, and ja is ignored.
+      - Without a valid persisted value, the primary subtag of navigator.languages[0] is used; navigator.language is used only when that entry is unavailable.
+      - A ko primary subtag resolves to ko, ja resolves to ja, and every other subtag resolves to en.
+      - If browser language APIs are unavailable, en is used.
+
+  - id: AC-3
+    title: Article content changes atomically
+    given: One language version of the article is displayed.
+    when: The reader selects another language.
+    then:
+      - A loading status for the requested language appears immediately.
+      - The displayed article title, metadata, and Markdown body remain the previous language until the requested content is ready.
+      - A success before 5000 ms swaps title, metadata, and body together and then persists the successful language.
+      - A fetch failure or elapsed time of 5000 ms or more keeps the previous article and persisted language, shows an error, and offers retry for the failed target language.
+      - Retry requests the same failed target and is subject to the same timeout and latest-request-wins rules.
+      - When selections or retries overlap, only the latest request may update the article, status, or persisted language; every stale success or error is ignored.
+
+  - id: AC-4
+    title: Reading position survives a language swap
+    given: A language transition begins while the article is visible.
+    when: The requested article is committed.
+    then:
+      - Before the request, all rendered h2 and h3 headings are combined in DOM order.
+      - The reference heading is the heading whose bounding-rectangle top has the smallest absolute distance from the viewport top; its zero-based ordinal is captured.
+      - After the swap, the heading with the same ordinal is aligned to the viewport top.
+      - If that ordinal does not exist, article-local progress is restored with ratio clamp((scrollY - articleTop) / max(1, articleHeight - viewportHeight), 0, 1).
+      - The fallback target is newArticleTop + ratio * max(0, newArticleHeight - viewportHeight), clamped to the document's scrollable range.
+
+  - id: AC-5
+    title: All three article variants remain usable
+    given: The React reconciliation article exists in English, Korean, and Japanese.
+    when: Each language is selected and successfully loaded.
+    then:
+      - The matching metadata and Markdown variant render.
+      - Markdown headings remain queryable as h2 or h3 elements for position restoration.
+      - Existing blog routes continue to work without locale path changes.
+
+ontology:
+  language:
+    type: enum
+    values: [en, ko, ja]
+  persistedLanguage:
+    type: nullable_enum
+    values: [en, ko, ja]
+    meaning: Last successfully committed language.
+  requestedLanguage:
+    type: nullable_enum
+    values: [en, ko, ja]
+    meaning: Current or failed target used by loading, retry, and error feedback.
+  transitionState:
+    type: enum
+    values: [idle, loading, error]
+  transitionError:
+    type: nullable_string
+  articleSnapshot:
+    fields: [language, title, metadata, markdownBody]
+    invariant: All fields belong to one language and commit together.
+  headingOrdinal:
+    type: non_negative_integer
+  articleScrollRatio:
+    type: number
+    range: [0, 1]
+
+verification:
+  required:
+    - A runnable automated check covers language normalization, invalid persisted data, timeout boundary, latest-request-wins state protection, and scroll-ratio math.
+    - npm run build passes.
+    - ESLint reports no errors in modified TypeScript or TSX files.
+    - Manual browser verification covers successful switching, the 5000 ms timeout with retry, rapid consecutive selections, and position restoration by ordinal and ratio fallback.
+  baseline_note: Existing unrelated repository-wide lint failures are not part of this change.
+
+non_goals:
+  - Parallel multilingual comparison
+  - URL locale routing
+  - Custom client content cache or prefetch
+  - New article authoring workflow
+  - README modernization
+  - Repository-wide lint remediation
+
+metadata:
+  ambiguity_score: 0.0475
+  qa_session_id: qa-15e3cd5a
+  qa_iteration: 2
+  qa_score: 0.94
+  qa_verdict: pass
