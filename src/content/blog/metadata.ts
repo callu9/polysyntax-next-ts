@@ -1,6 +1,6 @@
 import type { Language } from '@/lib/multilingualReading';
 
-export interface BlogPostMeta {
+interface BaseBlogPostMeta {
   id: string;
   title: string;
   excerpt: string;
@@ -9,15 +9,60 @@ export interface BlogPostMeta {
   readTime: number;
   slug: string;
   content: string;
+  relatedIds?: string[];
+}
+
+export interface BlogPostMeta extends BaseBlogPostMeta {
+  category: string;
+  tags: string[];
 }
 
 export type BlogPost = BlogPostMeta & { language: Language };
 
 interface BlogPostContent {
-  en?: BlogPostMeta;
-  ko?: BlogPostMeta;
-  ja?: BlogPostMeta;
+  en?: BaseBlogPostMeta;
+  ko?: BaseBlogPostMeta;
+  ja?: BaseBlogPostMeta;
 }
+
+const blogTaxonomy: Record<string, Record<Language, { category: string; tags: string[] }>> = {
+  'react-reconciliation': {
+    en: { category: 'Rendering', tags: ['react', 'rendering'] }, ko: { category: '렌더링', tags: ['react', '렌더링'] }, ja: { category: 'レンダリング', tags: ['react', 'レンダリング'] },
+  },
+  'performance-budget': {
+    en: { category: 'Performance', tags: ['performance', 'web-vitals'] }, ko: { category: '성능', tags: ['performance', 'web-vitals'] }, ja: { category: 'パフォーマンス', tags: ['performance', 'web-vitals'] },
+  },
+  'accessible-command-palette': {
+    en: { category: 'Accessibility', tags: ['accessibility', 'keyboard'] }, ko: { category: '접근성', tags: ['accessibility', 'keyboard'] }, ja: { category: 'アクセシビリティ', tags: ['accessibility', 'keyboard'] },
+  },
+  'container-queries': {
+    en: { category: 'CSS', tags: ['css', 'layout'] }, ko: { category: 'CSS', tags: ['css', 'layout'] }, ja: { category: 'CSS', tags: ['css', 'layout'] },
+  },
+  'optimistic-ui': {
+    en: { category: 'Product UX', tags: ['ux', 'state'] }, ko: { category: '제품 UX', tags: ['ux', 'state'] }, ja: { category: 'プロダクトUX', tags: ['ux', 'state'] },
+  },
+  'loading-states': {
+    en: { category: 'UX', tags: ['ux', 'loading'] }, ko: { category: 'UX', tags: ['ux', 'loading'] }, ja: { category: 'UX', tags: ['ux', 'loading'] },
+  },
+  'testing-user-flows': {
+    en: { category: 'Testing', tags: ['testing', 'quality'] }, ko: { category: '테스트', tags: ['testing', 'quality'] }, ja: { category: 'テスト', tags: ['testing', 'quality'] },
+  },
+  'typescript-boundaries': {
+    en: { category: 'TypeScript', tags: ['typescript', 'architecture'] }, ko: { category: 'TypeScript', tags: ['typescript', 'architecture'] }, ja: { category: 'TypeScript', tags: ['typescript', 'architecture'] },
+  },
+  'streaming-rendering': {
+    en: { category: 'Architecture', tags: ['react', 'streaming'] }, ko: { category: '아키텍처', tags: ['react', 'streaming'] }, ja: { category: 'アーキテクチャ', tags: ['react', 'streaming'] },
+  },
+  'layout-shift': {
+    en: { category: 'Performance', tags: ['performance', 'css'] }, ko: { category: '성능', tags: ['performance', 'css'] }, ja: { category: 'パフォーマンス', tags: ['performance', 'css'] },
+  },
+  'component-api': {
+    en: { category: 'Architecture', tags: ['react', 'api'] }, ko: { category: '아키텍처', tags: ['react', 'api'] }, ja: { category: 'アーキテクチャ', tags: ['react', 'api'] },
+  },
+  'frontend-observability': {
+    en: { category: 'Tooling', tags: ['observability', 'quality'] }, ko: { category: '도구', tags: ['observability', 'quality'] }, ja: { category: 'ツーリング', tags: ['observability', 'quality'] },
+  },
+};
 
 const blogPostsRegistry: Record<string, BlogPostContent> = {
   'react-reconciliation': {
@@ -192,16 +237,32 @@ const blogPostsRegistry: Record<string, BlogPostContent> = {
 
 export function getBlogPost(id: string, language: Language): BlogPost | null {
   const post = blogPostsRegistry[id]?.[language];
-  if (!post) return null;
-  return { ...post, language };
+  const taxonomy = blogTaxonomy[id]?.[language];
+  if (!post || !taxonomy) return null;
+  return { ...post, ...taxonomy, language };
 }
 
 export function getAllBlogPosts(language: Language): BlogPost[] {
-  return Object.values(blogPostsRegistry)
-    .map((content) => content[language])
-    .filter((post): post is BlogPostMeta => Boolean(post))
+  return Object.keys(blogPostsRegistry)
+    .map((id) => getBlogPost(id, language))
+    .filter((post): post is BlogPost => Boolean(post))
     .sort((a, b) => b.date.localeCompare(a.date))
-    .map((post) => ({ ...post, language }));
+}
+
+export function getRelatedBlogPosts(id: string, language: Language): BlogPost[] {
+  const current = blogPostsRegistry[id]?.[language];
+  const currentPost = getBlogPost(id, language);
+  if (!current || !currentPost) return [];
+
+  const explicit = (current.relatedIds ?? [])
+    .map((relatedId) => getBlogPost(relatedId, language))
+    .filter((post): post is BlogPost => Boolean(post));
+  const sameCategory = getAllBlogPosts(language).filter(
+    (post) => post.id !== id && post.category === currentPost.category,
+  );
+  return [...new Map([...explicit, ...sameCategory].map((post) => [post.id, post])).values()]
+    .filter((post) => post.id !== id)
+    .slice(0, 3);
 }
 
 export async function getBlogContent(slug: string, signal?: AbortSignal): Promise<string> {
