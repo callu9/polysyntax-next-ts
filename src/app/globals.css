@@ -1,0 +1,64 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+:root {
+  --background: #1C2228;
+  --foreground: #F6F5F0;
+  --card: #252E33;
+  --card-foreground: #F6F5F0;
+  --popover: #252E33;
+  --popover-foreground: #F6F5F0;
+  --primary: #D9DF74;
+  --primary-foreground: #1C2228;
+  --secondary: #2B363C;
+  --secondary-foreground: #F6F5F0;
+  --muted: #2B363C;
+  --muted-foreground: #AEB8B9;
+  --accent: #D9DF74;
+  --accent-foreground: #1C2228;
+  --destructive: #F59B94;
+  --border: #465157;
+  --input: #465157;
+  --ring: #D9DF74;
+}
+
+@layer base {
+  * { @apply border-border; }
+  html { color-scheme: dark; }
+  body { @apply min-w-80 bg-background text-foreground antialiased; }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

@@ -1,6 +1,6 @@
 # PolySyntax Multilingual Switching
 
-- Status: planning complete; implementation pending
+- Status: implementation complete; final manual fault-injection check pending
 - PM: `.ouroboros/pm.md`
 - Validated Seed: `.ouroboros/seed.yaml` (QA 0.94, iteration 2/5)
 - Implementation Plan: `docs/superpowers/plans/2026-08-13-polysyntax-multilingual-switching.md`
@@ -12,11 +12,20 @@
 | Check | Result |
 | --- | --- |
 | Seed QA | PASS — 0.94 |
-| Node policy test | Pending implementation |
-| Scoped ESLint | Pending implementation |
-| `npm run build` | Pending implementation |
-| Browser scenarios | Pending implementation |
+| Node policy test | PASS — 5/5 (`node --test --experimental-strip-types src/lib/multilingualReading.test.ts`) |
+| Scoped ESLint | PASS — modified implementation files, exit 0 |
+| `npm run build` | PASS — Next.js static build, exit 0 |
+| Browser: brand | PASS — home shows PolySyntax and the exact hero tagline |
+| Browser: language variants | PASS — EN, KO, and JA React reconciliation variants render |
+| Browser: heading ordinal | PASS — heading ordinal 7 stayed 7 and aligned at viewport top after EN → JA via the visible language menu |
+| Browser: timeout/retry fault injection | Not run — local browser control has no request-interception surface; the 5000 ms/latest-request boundary is covered by the Node policy test |
+| Dark Systems browser pass | PASS — `/`, `/blog`, article, `/login`, and `/about` have no horizontal overflow at 375 px or 1440 px; desktop navigation and compact mobile header verified |
+| Dark Systems interaction pass | PASS — article JA → EN language switch rendered one title and preserved the existing loading flow |
+| Dark Systems scoped ESLint | PASS — changed TS/TSX files, exit 0 |
+| Dark Systems build | PASS — `npm run build`, exit 0 |
 
 ## Handoff
 
-Implement the linked plan task-by-task while staging only files named by each task. Preserve all unrelated uncommitted user changes.
+Implementation files remain unstaged because the app source was already user-owned and untracked. Preserve all unrelated uncommitted user changes; manually fault-inject a delayed or failed Markdown request before treating timeout/retry UI as browser-verified.
+
+Dark Systems editorial styling is implemented on branch `codex/dark-systems-editorial`; source files remain unstaged pending an intentional review/commit decision.

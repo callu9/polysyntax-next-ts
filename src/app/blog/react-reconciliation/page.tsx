@@ -1,0 +1,241 @@
+'use client';
+
+import { getBlogContent, getBlogPost, type BlogPost } from '@/content/blog/metadata';
+import { getTranslations } from '@/content/translations';
+import { useTranslation } from '@/i18n/useTranslation';
+import {
+  canCommitRequest,
+  getArticleScrollRatio,
+  getArticleScrollTarget,
+  LANGUAGE_TIMEOUT_MS,
+} from '@/lib/multilingualReading';
+import { useLanguageStore } from '@/store/languageStore';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import ReactMarkdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+type ArticleSnapshot = { article: BlogPost; content: string };
+type ReadingPosition = { headingOrdinal: number | null; ratio: number };
+
+const markdownComponents: Components = {
+  h1: () => null,
+  h2: ({ node, ...props }) => {
+    void node;
+    return <h2 className="mt-12 mb-4 text-2xl font-semibold tracking-tight" {...props} />;
+  },
+  h3: ({ node, ...props }) => {
+    void node;
+    return <h3 className="mt-8 mb-3 text-xl font-semibold tracking-tight" {...props} />;
+  },
+  p: ({ node, ...props }) => {
+    void node;
+    return <p className="mb-5 leading-8 text-muted-foreground" {...props} />;
+  },
+  ul: ({ node, ...props }) => {
+    void node;
+    return <ul className="mb-5 list-inside list-disc space-y-2 leading-8 text-muted-foreground" {...props} />;
+  },
+  ol: ({ node, ...props }) => {
+    void node;
+    return <ol className="mb-5 list-inside list-decimal space-y-2 leading-8 text-muted-foreground" {...props} />;
+  },
+  code: ({ node, className, ...props }) => {
+    void node;
+    return className ? (
+      <code className="mb-5 block overflow-x-auto border border-border bg-card p-4 font-mono text-sm leading-6 text-foreground" {...props} />
+    ) : (
+      <code className="bg-secondary px-1.5 py-0.5 font-mono text-sm text-foreground" {...props} />
+    );
+  },
+  pre: ({ node, ...props }) => {
+    void node;
+    return <pre className="mb-5" {...props} />;
+  },
+  blockquote: ({ node, ...props }) => {
+    void node;
+    return <blockquote className="my-6 border-l-2 border-primary pl-5 italic leading-8 text-muted-foreground" {...props} />;
+  },
+  a: ({ node, ...props }) => {
+    void node;
+    return <a className="font-medium text-primary underline underline-offset-4 hover:opacity-80" {...props} />;
+  },
+};
+
+function captureReadingPosition(article: HTMLElement): ReadingPosition {
+  const headings = Array.from(article.querySelectorAll<HTMLElement>('h2, h3'));
+  let headingOrdinal: number | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  headings.forEach((heading, index) => {
+    const distance = Math.abs(heading.getBoundingClientRect().top);
+    if (distance < nearestDistance) {
+      headingOrdinal = index;
+      nearestDistance = distance;
+    }
+  });
+
+  const articleTop = window.scrollY + article.getBoundingClientRect().top;
+  return {
+    headingOrdinal,
+    ratio: getArticleScrollRatio(window.scrollY, articleTop, article.scrollHeight, window.innerHeight),
+  };
+}
+
+function restoreReadingPosition(article: HTMLElement, position: ReadingPosition): void {
+  const heading = position.headingOrdinal === null
+    ? undefined
+    : article.querySelectorAll<HTMLElement>('h2, h3')[position.headingOrdinal];
+
+  if (heading) {
+    window.scrollTo({ top: window.scrollY + heading.getBoundingClientRect().top });
+    return;
+  }
+
+  const articleTop = window.scrollY + article.getBoundingClientRect().top;
+  window.scrollTo({
+    top: getArticleScrollTarget(
+      position.ratio,
+      articleTop,
+      article.scrollHeight,
+      window.innerHeight,
+      document.documentElement.scrollHeight,
+    ),
+  });
+}
+
+export default function BlogPostPage() {
+  const { language, requestedLanguage, setLanguage } = useLanguageStore();
+  const { t } = useTranslation();
+  const targetLanguage = requestedLanguage ?? language;
+  const [snapshot, setSnapshot] = useState<ArticleSnapshot | null>(null);
+  const [failedTarget, setFailedTarget] = useState<BlogPost['language'] | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const articleRef = useRef<HTMLElement>(null);
+  const pendingPosition = useRef<ReadingPosition | null>(null);
+  const latestRequestId = useRef(0);
+
+  useEffect(() => {
+    const targetArticle = getBlogPost('react-reconciliation', targetLanguage)!;
+
+    const requestId = ++latestRequestId.current;
+    const startedAt = performance.now();
+    const controller = new AbortController();
+    const position = articleRef.current ? captureReadingPosition(articleRef.current) : null;
+    const timeout = window.setTimeout(() => controller.abort(), LANGUAGE_TIMEOUT_MS);
+
+    getBlogContent(targetArticle.slug, controller.signal)
+      .then((content) => {
+        if (!canCommitRequest(requestId, latestRequestId.current, startedAt, performance.now())) {
+          if (requestId === latestRequestId.current) setFailedTarget(targetLanguage);
+          return;
+        }
+
+        pendingPosition.current = position;
+        setSnapshot({ article: targetArticle, content });
+        setFailedTarget(null);
+      })
+      .catch(() => {
+        if (requestId === latestRequestId.current) setFailedTarget(targetLanguage);
+      })
+      .finally(() => window.clearTimeout(timeout));
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [retryCount, targetLanguage]);
+
+  useLayoutEffect(() => {
+    if (!snapshot) return;
+
+    setLanguage(snapshot.article.language);
+
+    const position = pendingPosition.current;
+    pendingPosition.current = null;
+    if (!articleRef.current || !position) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (articleRef.current) restoreReadingPosition(articleRef.current, position);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [setLanguage, snapshot]);
+
+  const article = snapshot?.article;
+  const content = snapshot?.content ?? '';
+  const articleTranslations = article ? getTranslations(article.language) : null;
+  const isLoading = !snapshot || (requestedLanguage !== null && failedTarget !== targetLanguage);
+  const isError = failedTarget === targetLanguage;
+
+  return (
+    <main>
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-16 lg:px-8">
+        <Link
+          href="/blog"
+          className="mb-12 inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          <ArrowLeft size={20} />
+          {t('blog.title')}
+        </Link>
+
+        {isLoading && (
+          <p role="status" aria-live="polite" className="mb-6 text-sm text-primary">
+            Loading {targetLanguage.toUpperCase()}…
+          </p>
+        )}
+
+        {isError && (
+          <div role="alert" className="mb-6 border border-destructive/50 bg-card p-4">
+            <p className="mb-3 text-sm leading-6 text-destructive">
+              Could not load {targetLanguage.toUpperCase()}. The current article is unchanged.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setFailedTarget(null);
+                setRetryCount((count) => count + 1);
+              }}
+              className="bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-85"
+            >
+              Retry {targetLanguage.toUpperCase()}
+            </button>
+          </div>
+        )}
+
+        {!article && !isError && (
+          <p className="py-12 text-center text-muted-foreground">Loading…</p>
+        )}
+
+        {article && (
+          <article ref={articleRef} className="mx-auto max-w-3xl">
+            <div className="mb-6 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <span>{article.language.toUpperCase()}</span>
+              <span>{new Date(article.date).toLocaleDateString(article.language === 'ko' ? 'ko-KR' : article.language === 'ja' ? 'ja-JP' : 'en-US')}</span>
+              <span>{article.author}</span>
+              <span>{article.readTime} {articleTranslations?.blog.readTime}</span>
+            </div>
+            <h1 className="mb-8 text-4xl font-semibold tracking-tight sm:text-5xl">{article.title}</h1>
+
+            <div className="border-t border-border pt-10">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                {content}
+              </ReactMarkdown>
+            </div>
+          </article>
+        )}
+
+        <div className="mx-auto mt-16 max-w-3xl border-t border-border pt-8">
+          <Link
+            href="/blog"
+            className="inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            <ArrowLeft size={20} />
+            {t('blog.title')}
+          </Link>
+        </div>
+      </div>
+    </main>
+  );
+}
