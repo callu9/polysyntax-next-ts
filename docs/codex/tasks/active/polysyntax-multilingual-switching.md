@@ -26,6 +26,4 @@
 
 ## Handoff
 
-Implementation files remain unstaged because the app source was already user-owned and untracked. Preserve all unrelated uncommitted user changes; manually fault-inject a delayed or failed Markdown request before treating timeout/retry UI as browser-verified.
-
-Dark Systems editorial styling is implemented on branch `codex/dark-systems-editorial`; source files remain unstaged pending an intentional review/commit decision.
+Implementation and Dark Systems editorial styling are committed on `main`. Preserve all unrelated uncommitted user changes; manually verify timeout/retry, rapid latest-request-wins switching, and ratio fallback before closing the task.

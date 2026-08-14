@@ -166,8 +166,8 @@ export default function BlogPostPage() {
   const article = snapshot?.article;
   const content = snapshot?.content ?? '';
   const articleTranslations = article ? getTranslations(article.language) : null;
-  const isLoading = !snapshot || (requestedLanguage !== null && failedTarget !== targetLanguage);
   const isError = failedTarget === targetLanguage;
+  const isLoading = !isError && (!snapshot || requestedLanguage !== null);
 
   return (
     <main>
