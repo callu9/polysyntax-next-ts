@@ -14,7 +14,9 @@ interface BaseBlogPostMeta {
 
 export interface BlogPostMeta extends BaseBlogPostMeta {
   category: string;
+  categoryId: string;
   tags: string[];
+  tagIds: string[];
 }
 
 export type BlogPost = BlogPostMeta & { language: Language };
@@ -62,6 +64,21 @@ const blogTaxonomy: Record<string, Record<Language, { category: string; tags: st
   'frontend-observability': {
     en: { category: 'Tooling', tags: ['observability', 'quality'] }, ko: { category: '도구', tags: ['observability', 'quality'] }, ja: { category: 'ツーリング', tags: ['observability', 'quality'] },
   },
+};
+
+const blogTaxonomyIds: Record<string, { categoryId: string; tagIds: string[] }> = {
+  'react-reconciliation': { categoryId: 'rendering', tagIds: ['react', 'rendering'] },
+  'performance-budget': { categoryId: 'performance', tagIds: ['performance', 'web-vitals'] },
+  'accessible-command-palette': { categoryId: 'accessibility', tagIds: ['accessibility', 'keyboard'] },
+  'container-queries': { categoryId: 'css', tagIds: ['css', 'layout'] },
+  'optimistic-ui': { categoryId: 'product-ux', tagIds: ['ux', 'state'] },
+  'loading-states': { categoryId: 'ux', tagIds: ['ux', 'loading'] },
+  'testing-user-flows': { categoryId: 'testing', tagIds: ['testing', 'quality'] },
+  'typescript-boundaries': { categoryId: 'typescript', tagIds: ['typescript', 'architecture'] },
+  'streaming-rendering': { categoryId: 'architecture', tagIds: ['react', 'streaming'] },
+  'layout-shift': { categoryId: 'performance', tagIds: ['performance', 'css'] },
+  'component-api': { categoryId: 'architecture', tagIds: ['react', 'api'] },
+  'frontend-observability': { categoryId: 'tooling', tagIds: ['observability', 'quality'] },
 };
 
 const blogPostsRegistry: Record<string, BlogPostContent> = {
@@ -238,8 +255,9 @@ const blogPostsRegistry: Record<string, BlogPostContent> = {
 export function getBlogPost(id: string, language: Language): BlogPost | null {
   const post = blogPostsRegistry[id]?.[language];
   const taxonomy = blogTaxonomy[id]?.[language];
-  if (!post || !taxonomy) return null;
-  return { ...post, ...taxonomy, language };
+  const taxonomyIds = blogTaxonomyIds[id];
+  if (!post || !taxonomy || !taxonomyIds) return null;
+  return { ...post, ...taxonomy, ...taxonomyIds, language };
 }
 
 export function getAllBlogPosts(language: Language): BlogPost[] {
@@ -258,23 +276,26 @@ export function getRelatedBlogPosts(id: string, language: Language): BlogPost[] 
     .map((relatedId) => getBlogPost(relatedId, language))
     .filter((post): post is BlogPost => Boolean(post));
   const sameCategory = getAllBlogPosts(language).filter(
-    (post) => post.id !== id && post.category === currentPost.category,
+    (post) => post.id !== id && post.categoryId === currentPost.categoryId,
   );
   return [...new Map([...explicit, ...sameCategory].map((post) => [post.id, post])).values()]
     .filter((post) => post.id !== id)
     .slice(0, 3);
 }
 
+export function getBlogContentBySlug(slug: string): string | null {
+  return Object.values(blogPostsRegistry)
+    .flatMap((content) => Object.values(content))
+    .find((candidate) => candidate?.slug === slug)?.content ?? null;
+}
+
 export async function getBlogContent(slug: string, signal?: AbortSignal): Promise<string> {
   if (signal?.aborted) throw new DOMException('The request was aborted', 'AbortError');
 
-  const post = Object.values(blogPostsRegistry)
-    .flatMap((content) => Object.values(content))
-    .find((candidate) => candidate?.slug === slug);
-
-  if (post) return post.content;
-
-  const response = await fetch(`/blog/${slug}.md`, { signal });
+  const contentUrl = getBlogContentBySlug(slug)
+    ? `/blog/content/${encodeURIComponent(slug)}`
+    : `/blog/${slug}.md`;
+  const response = await fetch(contentUrl, { signal });
   if (!response.ok) throw new Error(`Markdown request failed with ${response.status}`);
   return response.text();
 }

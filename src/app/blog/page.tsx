@@ -70,24 +70,24 @@ function BlogArchive() {
             <label htmlFor="article-category" className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('blog.category')}</label>
             <select
               id="article-category"
-              value={options.categories.includes(category) ? category : ''}
+              value={options.categories.some((option) => option.id === category) ? category : ''}
               onChange={(event) => updateQuery('category', event.target.value)}
               className="w-full border border-border bg-card px-3 py-2 text-sm outline-none transition-colors focus:border-primary"
             >
               <option value="">{t('blog.allCategories')}</option>
-              {options.categories.map((option) => <option key={option} value={option}>{option}</option>)}
+              {options.categories.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
             </select>
           </div>
           <div>
             <label htmlFor="article-tag" className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('blog.tag')}</label>
             <select
               id="article-tag"
-              value={options.tags.includes(tag) ? tag : ''}
+              value={options.tags.some((option) => option.id === tag) ? tag : ''}
               onChange={(event) => updateQuery('tag', event.target.value)}
               className="w-full border border-border bg-card px-3 py-2 text-sm outline-none transition-colors focus:border-primary"
             >
               <option value="">{t('blog.allTags')}</option>
-              {options.tags.map((option) => <option key={option} value={option}>{option}</option>)}
+              {options.tags.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
             </select>
           </div>
           {hasFilters && (
