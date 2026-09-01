@@ -13,6 +13,17 @@ test('all supported languages expose twelve posts with readable bodies', async (
   }
 });
 
+test('localized mock posts provide substantial reading material', () => {
+  const minimumLength = { en: 900, ko: 500, ja: 500 } as const;
+
+  for (const language of ['en', 'ko', 'ja'] as const) {
+    for (const post of getAllBlogPosts(language)) {
+      assert.ok(post.content.length >= minimumLength[language], language + '/' + post.id + ' is too short');
+      assert.ok((post.content.match(/^## /gm) ?? []).length >= 4, language + '/' + post.id + ' needs more sections');
+    }
+  }
+});
+
 test('every localized post has taxonomy and related posts exclude itself', () => {
   const posts = getAllBlogPosts('ko');
   assert.ok(posts.every((post) => post.category && post.categoryId && post.tags.length > 0 && post.tagIds.length > 0));
