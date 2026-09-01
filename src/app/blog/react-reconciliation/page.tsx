@@ -1,6 +1,6 @@
 'use client';
 
-import { getBlogContent, getBlogPost, type BlogPost } from '@/content/blog/metadata';
+import { getBlogContent, getBlogPost, getRelatedBlogPosts, type BlogPost } from '@/content/blog/metadata';
 import { getTranslations } from '@/content/translations';
 import { useTranslation } from '@/i18n/useTranslation';
 import {
@@ -11,8 +11,9 @@ import {
 } from '@/lib/multilingualReading';
 import { useLanguageStore } from '@/store/languageStore';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -106,6 +107,8 @@ function restoreReadingPosition(article: HTMLElement, position: ReadingPosition)
 }
 
 export default function BlogPostPage() {
+  const params = useParams<{ id?: string }>();
+  const postId = params?.id ?? 'react-reconciliation';
   const { language, requestedLanguage, setLanguage } = useLanguageStore();
   const { t } = useTranslation();
   const targetLanguage = requestedLanguage ?? language;
@@ -115,9 +118,10 @@ export default function BlogPostPage() {
   const articleRef = useRef<HTMLElement>(null);
   const pendingPosition = useRef<ReadingPosition | null>(null);
   const latestRequestId = useRef(0);
+  const targetArticle = useMemo(() => getBlogPost(postId, targetLanguage), [postId, targetLanguage]);
 
   useEffect(() => {
-    const targetArticle = getBlogPost('react-reconciliation', targetLanguage)!;
+    if (!targetArticle) return;
 
     const requestId = ++latestRequestId.current;
     const startedAt = performance.now();
@@ -145,7 +149,7 @@ export default function BlogPostPage() {
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [retryCount, targetLanguage]);
+  }, [postId, retryCount, targetArticle, targetLanguage]);
 
   useLayoutEffect(() => {
     if (!snapshot) return;
@@ -166,8 +170,10 @@ export default function BlogPostPage() {
   const article = snapshot?.article;
   const content = snapshot?.content ?? '';
   const articleTranslations = article ? getTranslations(article.language) : null;
+  const relatedArticles = article ? getRelatedBlogPosts(article.id, article.language) : [];
   const isError = failedTarget === targetLanguage;
-  const isLoading = !isError && (!snapshot || requestedLanguage !== null);
+  const isNotFound = !targetArticle;
+  const isLoading = !isNotFound && !isError && (!snapshot || requestedLanguage !== null);
 
   return (
     <main>
@@ -204,7 +210,11 @@ export default function BlogPostPage() {
           </div>
         )}
 
-        {!article && !isError && (
+        {isNotFound && (
+          <p className="py-12 text-center text-muted-foreground">Article not found.</p>
+        )}
+
+        {!article && !isNotFound && !isError && (
           <p className="py-12 text-center text-muted-foreground">Loading…</p>
         )}
 
@@ -224,6 +234,20 @@ export default function BlogPostPage() {
               </ReactMarkdown>
             </div>
           </article>
+        )}
+
+        {relatedArticles.length > 0 && (
+          <section className="mx-auto mt-16 max-w-3xl border-t border-border pt-8">
+            <h2 className="mb-6 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{articleTranslations?.blog.relatedArticles}</h2>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {relatedArticles.map((relatedArticle) => (
+                <Link key={relatedArticle.id} href={`/blog/${relatedArticle.id}`} className="border border-border bg-card p-4 transition-colors hover:bg-secondary">
+                  <h3 className="font-semibold tracking-tight">{relatedArticle.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{relatedArticle.excerpt}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
         )}
 
         <div className="mx-auto mt-16 max-w-3xl border-t border-border pt-8">
