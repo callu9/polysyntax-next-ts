@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { getAllBlogPosts } from '@/content/blog/metadata';
 import { getBlogFilterOptions, filterBlogPosts } from '@/lib/blogDiscovery';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -33,17 +33,43 @@ function BlogArchive() {
   const result = filterBlogPosts(articles, { query, category, tag, page: requestedPage, pageSize: PAGE_SIZE });
   const locale = language === 'ko' ? 'ko-KR' : language === 'ja' ? 'ja-JP' : 'en-US';
   const hasFilters = Boolean(query || category || tag || result.page > 1);
+  const resultsHeadingRef = useRef<HTMLHeadingElement>(null);
+  const previousPage = useRef(result.page);
 
-  const updateQuery = (key: string, value: string) => {
+  useEffect(() => {
+    const rawPage = searchParams.get('page');
+    if (rawPage && rawPage !== String(result.page)) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('page', String(result.page));
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+  }, [pathname, result.page, router, searchParams]);
+
+  useEffect(() => {
+    if (previousPage.current === result.page) return;
+    previousPage.current = result.page;
+    resultsHeadingRef.current?.scrollIntoView({ block: 'start' });
+    resultsHeadingRef.current?.focus({ preventScroll: true });
+  }, [result.page]);
+
+  const buildHref = (changes: Partial<Record<'q' | 'category' | 'tag' | 'page', string>>) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (value) params.set(key, value);
-    else params.delete(key);
-    if (key !== 'page') params.delete('page');
-    const nextQuery = params.toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    for (const key of ['q', 'category', 'tag', 'page'] as const) {
+      const value = changes[key];
+      if (value === undefined) continue;
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+    if (!('page' in changes)) params.delete('page');
+    const queryString = params.toString();
+    return queryString ? `${pathname}?${queryString}` : pathname;
   };
 
-  const clearFilters = () => router.replace(pathname, { scroll: false });
+  const updateQuery = (key: string, value: string) => {
+    router.replace(buildHref({ [key]: value }), { scroll: false });
+  };
+
+  const clearFilters = () => router.push(pathname, { scroll: false });
 
   return (
     <main>
@@ -67,28 +93,30 @@ function BlogArchive() {
             />
           </div>
           <div>
-            <label htmlFor="article-category" className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('blog.category')}</label>
-            <select
-              id="article-category"
-              value={options.categories.some((option) => option.id === category) ? category : ''}
-              onChange={(event) => updateQuery('category', event.target.value)}
-              className="w-full border border-border bg-card px-3 py-2 text-sm outline-none transition-colors focus:border-primary"
-            >
-              <option value="">{t('blog.allCategories')}</option>
-              {options.categories.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-            </select>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('blog.category')}</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('blog.category')}>
+              <Link href={buildHref({ category: '' })} aria-current={!category ? 'page' : undefined} className={`min-h-11 border px-3 py-2 text-sm ${!category ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}>
+                {t('blog.allCategories')}
+              </Link>
+              {options.categories.map((option) => (
+                <Link key={option.id} href={buildHref({ category: option.id })} aria-current={category === option.id ? 'page' : undefined} className={`min-h-11 border px-3 py-2 text-sm ${category === option.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}>
+                  {option.label}
+                </Link>
+              ))}
+            </div>
           </div>
           <div>
-            <label htmlFor="article-tag" className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('blog.tag')}</label>
-            <select
-              id="article-tag"
-              value={options.tags.some((option) => option.id === tag) ? tag : ''}
-              onChange={(event) => updateQuery('tag', event.target.value)}
-              className="w-full border border-border bg-card px-3 py-2 text-sm outline-none transition-colors focus:border-primary"
-            >
-              <option value="">{t('blog.allTags')}</option>
-              {options.tags.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-            </select>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('blog.tag')}</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('blog.tag')}>
+              <Link href={buildHref({ tag: '' })} aria-current={!tag ? 'page' : undefined} className={`min-h-11 border px-3 py-2 text-sm ${!tag ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}>
+                {t('blog.allTags')}
+              </Link>
+              {options.tags.map((option) => (
+                <Link key={option.id} href={buildHref({ tag: option.id })} aria-current={tag === option.id ? 'page' : undefined} className={`min-h-11 border px-3 py-2 text-sm ${tag === option.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}>
+                  #{option.label}
+                </Link>
+              ))}
+            </div>
           </div>
           {hasFilters && (
             <button type="button" onClick={clearFilters} className="border border-border px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-secondary">
@@ -96,6 +124,8 @@ function BlogArchive() {
             </button>
           )}
         </div>
+
+        <h2 ref={resultsHeadingRef} id="article-results" tabIndex={-1} className="sr-only">{t('blog.resultsHeading')}</h2>
 
         {result.total === 0 ? (
           <div className="py-16 text-center">
@@ -127,10 +157,16 @@ function BlogArchive() {
             </div>
 
             {result.totalPages > 1 && (
-            <nav aria-label={t('blog.pagination')} className="flex items-center justify-between border-t border-border pt-6">
-                <button type="button" disabled={result.page === 1} onClick={() => updateQuery('page', String(result.page - 1))} className="text-sm font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-40">← {t('blog.previous')}</button>
-                <span className="text-sm text-muted-foreground">{t('blog.page')} {result.page} / {result.totalPages}</span>
-                <button type="button" disabled={result.page === result.totalPages} onClick={() => updateQuery('page', String(result.page + 1))} className="text-sm font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-40">{t('blog.next')} →</button>
+              <nav aria-label={t('blog.pagination')} className="flex flex-wrap items-center justify-between gap-4 border-t border-border pt-6">
+                {result.page > 1 ? <Link href={buildHref({ page: String(result.page - 1) })} className="min-h-11 py-3 text-sm font-semibold text-primary">← {t('blog.previous')}</Link> : <span className="min-h-11 py-3 text-sm text-muted-foreground/50">← {t('blog.previous')}</span>}
+                <div className="flex items-center gap-2" aria-label={t('blog.pagination')}>
+                  {Array.from({ length: result.totalPages }, (_, index) => index + 1).map((pageNumber) => (
+                    <Link key={pageNumber} href={buildHref({ page: String(pageNumber) })} aria-current={pageNumber === result.page ? 'page' : undefined} aria-label={`${t('blog.page')} ${pageNumber}`} className={`min-h-11 min-w-11 border px-3 py-3 text-center text-sm font-semibold ${pageNumber === result.page ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-primary hover:bg-secondary'}`}>
+                      {pageNumber}
+                    </Link>
+                  ))}
+                </div>
+                {result.page < result.totalPages ? <Link href={buildHref({ page: String(result.page + 1) })} className="min-h-11 py-3 text-sm font-semibold text-primary">{t('blog.next')} →</Link> : <span className="min-h-11 py-3 text-sm text-muted-foreground/50">{t('blog.next')} →</span>}
               </nav>
             )}
           </>
