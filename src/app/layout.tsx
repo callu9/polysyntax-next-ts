@@ -1,17 +1,39 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans, Noto_Sans_JP, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const ibmPlexSans = IBM_Plex_Sans({
+  variable: "--font-ibm-plex-sans",
+  weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
+  display: "swap",
+  fallback: ["Arial", "sans-serif"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const ibmPlexMono = IBM_Plex_Mono({
+  variable: "--font-ibm-plex-mono",
+  weight: "400",
   subsets: ["latin"],
+  display: "swap",
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+});
+
+const notoSansKR = Noto_Sans_KR({
+  variable: "--font-noto-sans-kr",
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  fallback: ["Arial", "sans-serif"],
+  preload: false,
+});
+
+const notoSansJP = Noto_Sans_JP({
+  variable: "--font-noto-sans-jp",
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  fallback: ["Arial", "sans-serif"],
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -25,10 +47,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground`}
-      >
+    <html lang="en" className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${notoSansKR.variable} ${notoSansJP.variable}`}>
+      <body className="bg-background font-sans text-foreground">
         <Header />
         {children}
         <Footer />

@@ -230,7 +230,7 @@ export default function BlogPostPage() {
 
         {article && (
           <article ref={articleRef} className="mx-auto max-w-3xl">
-            <div className="mb-6 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium tracking-[0.14em] text-muted-foreground">
+            <div className="mb-6 flex flex-wrap gap-x-4 gap-y-2 font-mono text-xs font-medium tracking-[0.14em] text-muted-foreground">
               <span>{article.language.toUpperCase()}</span>
               <span>{new Date(article.date).toLocaleDateString(article.language === 'ko' ? 'ko-KR' : article.language === 'ja' ? 'ja-JP' : 'en-US')}</span>
               <span>{article.author}</span>
