@@ -3,6 +3,7 @@ import { IBM_Plex_Mono, IBM_Plex_Sans, Noto_Sans_JP, Noto_Sans_KR } from "next/f
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { absoluteUrl, getSiteOrigin } from "@/lib/seo";
 
 const ibmPlexSans = IBM_Plex_Sans({
   variable: "--font-ibm-plex-sans",
@@ -36,10 +37,25 @@ const notoSansJP = Noto_Sans_JP({
   preload: false,
 });
 
-export const metadata: Metadata = {
-  title: "PolySyntax - Multilingual Frontend Reading",
-  description: "One frontend idea, three languages.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const canonical = absoluteUrl(await getSiteOrigin(), '/');
+  return {
+    title: "PolySyntax - Multilingual Frontend Reading",
+    description: "One frontend idea, three languages.",
+    alternates: { canonical },
+    openGraph: {
+      title: "PolySyntax - Multilingual Frontend Reading",
+      description: "One frontend idea, three languages.",
+      url: canonical,
+      siteName: 'PolySyntax',
+    },
+    twitter: {
+      card: 'summary',
+      title: "PolySyntax - Multilingual Frontend Reading",
+      description: "One frontend idea, three languages.",
+    },
+  };
+}
 
 export default function RootLayout({
   children,
