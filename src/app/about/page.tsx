@@ -10,7 +10,7 @@ export default function About() {
   if (!copy) return null;
 
   return (
-    <main>
+    <main id="main-content" tabIndex={-1}>
       <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6 md:py-24 lg:px-8">
         <p className="mb-5 text-xs font-semibold uppercase tracking-[0.18em] text-primary">{copy.publication}</p>
         <h1 className="border-b border-border pb-8 text-5xl font-semibold tracking-tight sm:text-6xl">{copy.title}</h1>

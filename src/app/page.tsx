@@ -13,7 +13,7 @@ export default function Home() {
   const featuredArticle = editorial.featured;
 
   return (
-    <main>
+    <main id="main-content" tabIndex={-1}>
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24 lg:px-8">
         <p className="mb-6 text-xs font-semibold uppercase tracking-[0.18em] text-primary">Issue 001</p>
         <div className="grid gap-12 border-b border-border pb-16 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
@@ -31,7 +31,7 @@ export default function Home() {
             <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t("home.latestArticles")}</h2>
             <span className="text-xs text-muted-foreground">{editorial.total} {t('home.articleCount')}</span>
           </div>
-          <Link href="/blog" className="text-sm font-medium text-primary transition-opacity hover:opacity-80">{t('home.viewAll')} →</Link>
+          <Link href="/blog" className="inline-flex min-h-11 items-center text-sm font-medium text-primary transition-opacity hover:opacity-80">{t('home.viewAll')} →</Link>
         </div>
 
         {!featuredArticle ? (
