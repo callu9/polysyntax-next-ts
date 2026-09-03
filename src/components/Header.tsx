@@ -58,9 +58,12 @@ export const Header = () => {
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-50 focus:bg-primary focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-primary-foreground">
+        {t('common.skipToContent')}
+      </a>
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="text-lg font-semibold tracking-tight text-foreground">
+          <Link href="/" className="inline-flex min-h-11 items-center text-lg font-semibold tracking-tight text-foreground">
             {t('common.siteName')}
           </Link>
 
@@ -70,7 +73,7 @@ export const Header = () => {
                 key={href}
                 href={href}
                 aria-current={isActive(href) ? 'page' : undefined}
-                className={`border-b pb-1 text-xs font-medium uppercase tracking-[0.16em] transition-colors ${isActive(href) ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                className={`inline-flex min-h-11 items-center border-b pb-1 text-xs font-medium uppercase tracking-[0.16em] transition-colors ${isActive(href) ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
               >
                 {t(key)}
               </Link>

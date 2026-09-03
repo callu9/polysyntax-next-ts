@@ -12,7 +12,7 @@ const PAGE_SIZE = 6;
 
 export default function Blog() {
   return (
-    <Suspense fallback={<main className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24 lg:px-8" />}>
+    <Suspense fallback={<main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24 lg:px-8" />}>
       <BlogArchive />
     </Suspense>
   );
@@ -72,7 +72,7 @@ function BlogArchive() {
   const clearFilters = () => router.push(pathname, { scroll: false });
 
   return (
-    <main>
+    <main id="main-content" tabIndex={-1}>
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24 lg:px-8">
         <p className="mb-5 text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t('blog.archive')}</p>
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-8">
@@ -89,7 +89,7 @@ function BlogArchive() {
               value={query}
               onChange={(event) => updateQuery('q', event.target.value)}
               placeholder={t('blog.searchPlaceholder')}
-              className="w-full border border-border bg-card px-3 py-2 text-sm outline-none transition-colors focus:border-primary"
+              className="min-h-11 w-full border border-border bg-card px-3 py-2 text-sm outline-none transition-colors focus:border-primary"
             />
           </div>
           <div>
@@ -119,7 +119,7 @@ function BlogArchive() {
             </div>
           </div>
           {hasFilters && (
-            <button type="button" onClick={clearFilters} className="border border-border px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-secondary">
+            <button type="button" onClick={clearFilters} className="min-h-11 border border-border px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-secondary">
               {t('blog.clearFilters')}
             </button>
           )}
@@ -130,7 +130,7 @@ function BlogArchive() {
         {result.total === 0 ? (
           <div className="py-16 text-center">
             <p className="text-lg text-muted-foreground">{t('blog.noMatchingArticles')}</p>
-            <button type="button" onClick={clearFilters} className="mt-5 text-sm font-semibold text-primary underline underline-offset-4">{t('blog.resetFilters')}</button>
+            <button type="button" onClick={clearFilters} className="mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline underline-offset-4">{t('blog.resetFilters')}</button>
           </div>
         ) : (
           <>
@@ -150,7 +150,7 @@ function BlogArchive() {
                     <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                       {article.tags.map((articleTag) => <span key={articleTag} className="border border-border px-2 py-1">#{articleTag}</span>)}
                     </div>
-                    <Link href={`/blog/${article.id}`} className="mt-5 inline-block text-sm font-semibold text-primary">{t('home.readMore')} →</Link>
+                    <Link href={`/blog/${article.id}`} className="mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-primary">{t('home.readMore')} →</Link>
                   </div>
                 </article>
               ))}

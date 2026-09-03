@@ -177,20 +177,20 @@ export default function BlogPostPage() {
   const isLoading = !isNotFound && !isError && (!snapshot || requestedLanguage !== null);
 
   return (
-    <main>
+    <main id="main-content" tabIndex={-1}>
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-16 lg:px-8">
         {article ? (
           <nav aria-label={t('blog.breadcrumb')} className="mb-12 overflow-x-auto text-sm">
             <ol className="flex min-w-max items-center gap-2 text-muted-foreground">
-              <li><Link href="/blog" className="font-medium text-primary underline-offset-4 hover:underline">{t('blog.title')}</Link></li>
+              <li><Link href="/blog" className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline">{t('blog.title')}</Link></li>
               <li aria-hidden="true">/</li>
-              <li><Link href={`/blog?category=${encodeURIComponent(article.categoryId)}`} className="font-medium text-primary underline-offset-4 hover:underline">{article.category}</Link></li>
+              <li><Link href={`/blog?category=${encodeURIComponent(article.categoryId)}`} className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline">{article.category}</Link></li>
               <li aria-hidden="true">/</li>
               <li aria-current="page" className="max-w-[16rem] truncate">{article.title}</li>
             </ol>
           </nav>
         ) : (
-          <Link href="/blog" className="mb-12 inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline">
+          <Link href="/blog" className="mb-12 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline">
             <ArrowLeft size={20} aria-hidden="true" />
             {t('blog.title')}
           </Link>
@@ -213,7 +213,7 @@ export default function BlogPostPage() {
                 setFailedTarget(null);
                 setRetryCount((count) => count + 1);
               }}
-              className="bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-85"
+              className="min-h-11 bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-85"
             >
               {t('blog.retry')} {targetLanguage.toUpperCase()}
             </button>

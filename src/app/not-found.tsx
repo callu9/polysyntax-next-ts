@@ -7,7 +7,7 @@ export default function NotFound() {
   const { t } = useTranslation();
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-24 text-center sm:px-6 lg:px-8">
+    <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-4 py-24 text-center sm:px-6 lg:px-8">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">404</p>
       <h1 className="mt-5 text-4xl font-semibold tracking-tight">{t('common.notFoundTitle')}</h1>
       <p className="mt-4 text-muted-foreground">{t('common.notFoundDescription')}</p>

@@ -15,18 +15,18 @@ export const Footer = () => {
             <h3 className="mb-3 text-base font-semibold text-foreground">{t('common.siteName')}</h3>
             <p className="max-w-xs text-sm leading-6 text-muted-foreground">{t('common.siteDescription')}</p>
           </div>
-          <div>
+          <nav aria-label={t('common.navigation')}>
             <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{t('common.navigation')}</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/" className="text-muted-foreground transition-colors hover:text-primary">{t('common.home')}</Link></li>
-              <li><Link href="/blog" className="text-muted-foreground transition-colors hover:text-primary">{t('common.blog')}</Link></li>
-              <li><Link href="/about" className="text-muted-foreground transition-colors hover:text-primary">{t('common.about')}</Link></li>
+              <li><Link href="/" className="inline-flex min-h-11 items-center text-muted-foreground transition-colors hover:text-primary">{t('common.home')}</Link></li>
+              <li><Link href="/blog" className="inline-flex min-h-11 items-center text-muted-foreground transition-colors hover:text-primary">{t('common.blog')}</Link></li>
+              <li><Link href="/about" className="inline-flex min-h-11 items-center text-muted-foreground transition-colors hover:text-primary">{t('common.about')}</Link></li>
             </ul>
-          </div>
+          </nav>
           <div>
             <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{t('common.contact')}</h4>
             <p className="text-sm text-muted-foreground">
-              <a href="mailto:contact@polysyntax.dev" className="transition-colors hover:text-primary">
+              <a href="mailto:contact@polysyntax.dev" className="inline-flex min-h-11 items-center transition-colors hover:text-primary">
                 contact@polysyntax.dev
               </a>
             </p>
