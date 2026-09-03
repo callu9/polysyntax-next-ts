@@ -15,6 +15,15 @@ export interface BlogFilterResult {
   totalPages: number;
 }
 
+export function getHomeEditorial(posts: BlogPost[]): {
+  featured: BlogPost | null;
+  latest: BlogPost[];
+  total: number;
+} {
+  const uniquePosts = [...new Map(posts.map((post) => [post.id, post])).values()];
+  return { featured: uniquePosts[0] ?? null, latest: uniquePosts.slice(1, 5), total: uniquePosts.length };
+}
+
 export function filterBlogPosts(posts: BlogPost[], filters: BlogFilterInput): BlogFilterResult {
   const query = filters.query.trim().toLocaleLowerCase();
   const categories = new Set(posts.map((post) => post.categoryId.toLocaleLowerCase()));

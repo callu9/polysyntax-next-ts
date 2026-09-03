@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { BlogPost } from '@/content/blog/metadata';
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
-import { filterBlogPosts } from './blogDiscovery.ts';
+import { filterBlogPosts, getHomeEditorial } from './blogDiscovery.ts';
 
 const posts: BlogPost[] = [
   {
@@ -35,4 +35,12 @@ test('invalid page and filters resolve to safe defaults', () => {
 test('filters use stable taxonomy ids instead of localized labels', () => {
   const result = filterBlogPosts(posts, { query: '', category: 'css', tag: '', page: 1, pageSize: 6 });
   assert.deepEqual(result.posts.map((post) => post.id), ['container-queries', 'css-testing']);
+});
+
+test('home editorial selection handles empty input and removes duplicate ids', () => {
+  const result = getHomeEditorial([posts[0], posts[0], posts[1]]);
+  assert.equal(result.total, 2);
+  assert.equal(result.featured?.id, 'container-queries');
+  assert.deepEqual(result.latest.map((post) => post.id), ['performance-budget']);
+  assert.deepEqual(getHomeEditorial([]), { featured: null, latest: [], total: 0 });
 });

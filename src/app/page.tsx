@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { getAllBlogPosts } from "@/content/blog/metadata";
+import { getHomeEditorial } from "@/lib/blogDiscovery";
 import { useTranslation } from "@/i18n/useTranslation";
 import { useLanguageStore } from "@/store/languageStore";
 
 export default function Home() {
   const { t } = useTranslation();
   const { language } = useLanguageStore();
-  const featuredArticle = getAllBlogPosts(language)[0];
+  const editorial = getHomeEditorial(getAllBlogPosts(language));
+  const featuredArticle = editorial.featured;
 
   return (
     <main>
@@ -24,12 +26,18 @@ export default function Home() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t("home.latestArticles")}</h2>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-baseline gap-3">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t("home.latestArticles")}</h2>
+            <span className="text-xs text-muted-foreground">{editorial.total} {t('home.articleCount')}</span>
+          </div>
           <Link href="/blog" className="text-sm font-medium text-primary transition-opacity hover:opacity-80">{t('home.viewAll')} →</Link>
         </div>
 
-        {featuredArticle && (
+        {!featuredArticle ? (
+          <p className="border border-border py-16 text-center text-muted-foreground">{t('home.noArticles')}</p>
+        ) : (
+          <>
           <Link href={`/blog/${featuredArticle.id}`} className="group block border border-border bg-card p-6 transition-colors hover:bg-secondary sm:p-8">
             <div className="mb-12 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium tracking-[0.14em] text-muted-foreground">
               <span>{new Date(featuredArticle.date).toLocaleDateString(language === "ko" ? "ko-KR" : language === "ja" ? "ja-JP" : "en-US")}</span>
@@ -44,6 +52,18 @@ export default function Home() {
               </div>
             </div>
           </Link>
+            {editorial.latest.length > 0 && (
+              <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {editorial.latest.map((article) => (
+                  <Link key={article.id} href={`/blog/${article.id}`} className="group border border-border bg-card p-5 transition-colors hover:bg-secondary">
+                    <p className="text-xs text-muted-foreground">{new Date(article.date).toLocaleDateString(language === "ko" ? "ko-KR" : language === "ja" ? "ja-JP" : "en-US")}</p>
+                    <h3 className="mt-8 text-xl font-semibold tracking-tight group-hover:text-primary">{article.title}</h3>
+                    <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">{article.excerpt}</p>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
     </main>
