@@ -1,7 +1,6 @@
 import { commonTranslations } from './common';
 import { homeTranslations } from './home';
 import { blogTranslations } from './blog';
-import { authTranslations } from './auth';
 import { aboutTranslations } from './about';
 
 type Language = 'en' | 'ko' | 'ja';
@@ -10,7 +9,6 @@ export interface TranslationMeta {
   common: (typeof commonTranslations)[Language];
   home: (typeof homeTranslations)[Language];
   blog: (typeof blogTranslations)[Language];
-  auth: (typeof authTranslations)[Language];
   about: (typeof aboutTranslations)[Language];
 }
 
@@ -26,21 +24,18 @@ const translationsRegistry: TranslationContent = {
     common: commonTranslations.en,
     home: homeTranslations.en,
     blog: blogTranslations.en,
-    auth: authTranslations.en,
     about: aboutTranslations.en,
   },
   ko: {
     common: commonTranslations.ko,
     home: homeTranslations.ko,
     blog: blogTranslations.ko,
-    auth: authTranslations.ko,
     about: aboutTranslations.ko,
   },
   ja: {
     common: commonTranslations.ja,
     home: homeTranslations.ja,
     blog: blogTranslations.ja,
-    auth: authTranslations.ja,
     about: aboutTranslations.ja,
   },
 };
