@@ -39,7 +39,7 @@ export default function Home() {
         ) : (
           <>
           <Link href={`/blog/${featuredArticle.id}`} className="group block border border-border bg-card p-6 transition-colors hover:bg-secondary sm:p-8">
-            <div className="mb-12 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium tracking-[0.14em] text-muted-foreground">
+            <div className="mb-12 flex flex-wrap gap-x-4 gap-y-2 font-mono text-xs font-medium tracking-[0.14em] text-muted-foreground">
               <span>{new Date(featuredArticle.date).toLocaleDateString(language === "ko" ? "ko-KR" : language === "ja" ? "ja-JP" : "en-US")}</span>
               <span>{featuredArticle.readTime}{language === 'ja' ? '' : ' '}{t("blog.readTime")}</span>
               <span>{language.toUpperCase()}</span>
@@ -56,7 +56,7 @@ export default function Home() {
               <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {editorial.latest.map((article) => (
                   <Link key={article.id} href={`/blog/${article.id}`} className="group border border-border bg-card p-5 transition-colors hover:bg-secondary">
-                    <p className="text-xs text-muted-foreground">{new Date(article.date).toLocaleDateString(language === "ko" ? "ko-KR" : language === "ja" ? "ja-JP" : "en-US")}</p>
+                    <p className="font-mono text-xs text-muted-foreground">{new Date(article.date).toLocaleDateString(language === "ko" ? "ko-KR" : language === "ja" ? "ja-JP" : "en-US")}</p>
                     <h3 className="mt-8 text-xl font-semibold tracking-tight group-hover:text-primary">{article.title}</h3>
                     <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">{article.excerpt}</p>
                   </Link>

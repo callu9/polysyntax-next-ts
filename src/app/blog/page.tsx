@@ -137,7 +137,7 @@ function BlogArchive() {
             <div className="divide-y divide-border">
               {result.posts.map((article) => (
                 <article key={article.id} className="group grid gap-5 py-8 md:grid-cols-[10rem_1fr] md:gap-10">
-                  <div className="text-xs font-medium tracking-[0.14em] text-muted-foreground">
+                  <div className="font-mono text-xs font-medium tracking-[0.14em] text-muted-foreground">
                     <p>{new Date(article.date).toLocaleDateString(locale)}</p>
                     <p className="mt-2">{article.readTime}{language === 'ja' ? '' : ' '}{t('blog.readTime')}</p>
                     <p className="mt-2">{article.category}</p>
