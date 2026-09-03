@@ -1,4 +1,4 @@
-import { getBlogContentBySlug } from '@/content/blog/metadata';
+import { getBlogContentBySlug } from '@/content/blog/content';
 
 export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

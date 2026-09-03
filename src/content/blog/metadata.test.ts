@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
-import { getAllBlogPosts, getArticleNeighbors, getBlogContent, getBlogContentBySlug, getRelatedBlogPosts } from './metadata.ts';
+import { getAllBlogPosts, getArticleNeighbors, getBlogContent, getRelatedBlogPosts } from './metadata.ts';
+import { getBlogContentBySlug } from './content.ts';
 
 test('all supported languages expose twelve posts with readable bodies', async () => {
   for (const language of ['en', 'ko', 'ja'] as const) {
@@ -18,8 +19,9 @@ test('localized mock posts provide substantial reading material', () => {
 
   for (const language of ['en', 'ko', 'ja'] as const) {
     for (const post of getAllBlogPosts(language)) {
-      assert.ok(post.content.length >= minimumLength[language], language + '/' + post.id + ' is too short');
-      assert.ok((post.content.match(/^## /gm) ?? []).length >= 4, language + '/' + post.id + ' needs more sections');
+      const content = getBlogContentBySlug(post.slug) ?? '';
+      assert.ok(content.length >= minimumLength[language], language + '/' + post.id + ' is too short');
+      assert.ok((content.match(/^## /gm) ?? []).length >= 4, language + '/' + post.id + ' needs more sections');
     }
   }
 });
