@@ -106,9 +106,9 @@ function restoreReadingPosition(article: HTMLElement, position: ReadingPosition)
   });
 }
 
-export default function BlogPostPage() {
+export default function BlogPostPage({ postId: providedPostId }: { postId?: string } = {}) {
   const params = useParams<{ id?: string }>();
-  const postId = params?.id ?? 'react-reconciliation';
+  const postId = providedPostId ?? params?.id ?? 'react-reconciliation';
   const { language, requestedLanguage, setLanguage } = useLanguageStore();
   const { t } = useTranslation();
   const targetLanguage = requestedLanguage ?? language;

@@ -1,3 +1,28 @@
-'use client';
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { getBlogPost } from '@/content/blog/metadata';
+import { ArticleStructuredData } from '@/components/ArticleStructuredData';
+import BlogPostPage from '../react-reconciliation/page';
+import { absoluteUrl, getArticleMetadata, getSiteOrigin } from '@/lib/seo';
 
-export { default } from '../react-reconciliation/page';
+type ArticlePageProps = { params: Promise<{ id: string }> };
+
+export async function generateMetadata({ params }: ArticlePageProps): Promise<Metadata> {
+  const { id } = await params;
+  const post = getBlogPost(id, 'en');
+  if (!post) return { title: 'Page not found | PolySyntax', robots: { index: false, follow: false } };
+  return getArticleMetadata(post, absoluteUrl(await getSiteOrigin(), `/blog/${id}`));
+}
+
+export default async function ArticlePage({ params }: ArticlePageProps) {
+  const { id } = await params;
+  const post = getBlogPost(id, 'en');
+  if (!post) notFound();
+  const canonical = absoluteUrl(await getSiteOrigin(), `/blog/${id}`);
+  return (
+    <>
+      <ArticleStructuredData post={post} canonical={canonical} />
+      <BlogPostPage postId={id} />
+    </>
+  );
+}
