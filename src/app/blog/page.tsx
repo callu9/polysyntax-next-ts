@@ -48,7 +48,7 @@ function BlogArchive() {
   return (
     <main>
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24 lg:px-8">
-        <p className="mb-5 text-xs font-semibold uppercase tracking-[0.18em] text-primary">Archive</p>
+        <p className="mb-5 text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t('blog.archive')}</p>
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-8">
           <h1 className="text-5xl font-semibold tracking-tight sm:text-6xl">{t('blog.title')}</h1>
           <p aria-live="polite" className="text-sm text-muted-foreground">{result.total} {t('blog.results')} · {language.toUpperCase()}</p>
@@ -107,9 +107,9 @@ function BlogArchive() {
             <div className="divide-y divide-border">
               {result.posts.map((article) => (
                 <article key={article.id} className="group grid gap-5 py-8 md:grid-cols-[10rem_1fr] md:gap-10">
-                  <div className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  <div className="text-xs font-medium tracking-[0.14em] text-muted-foreground">
                     <p>{new Date(article.date).toLocaleDateString(locale)}</p>
-                    <p className="mt-2">{article.readTime} {t('blog.readTime')}</p>
+                    <p className="mt-2">{article.readTime}{language === 'ja' ? '' : ' '}{t('blog.readTime')}</p>
                     <p className="mt-2">{article.category}</p>
                   </div>
                   <div>
@@ -127,7 +127,7 @@ function BlogArchive() {
             </div>
 
             {result.totalPages > 1 && (
-              <nav aria-label="Pagination" className="flex items-center justify-between border-t border-border pt-6">
+            <nav aria-label={t('blog.pagination')} className="flex items-center justify-between border-t border-border pt-6">
                 <button type="button" disabled={result.page === 1} onClick={() => updateQuery('page', String(result.page - 1))} className="text-sm font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-40">← {t('blog.previous')}</button>
                 <span className="text-sm text-muted-foreground">{t('blog.page')} {result.page} / {result.totalPages}</span>
                 <button type="button" disabled={result.page === result.totalPages} onClick={() => updateQuery('page', String(result.page + 1))} className="text-sm font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-40">{t('blog.next')} →</button>

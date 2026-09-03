@@ -188,14 +188,14 @@ export default function BlogPostPage() {
 
         {isLoading && (
           <p role="status" aria-live="polite" className="mb-6 text-sm text-primary">
-            Loading {targetLanguage.toUpperCase()}…
+            {t('blog.loading')} {targetLanguage.toUpperCase()}…
           </p>
         )}
 
         {isError && (
           <div role="alert" className="mb-6 border border-destructive/50 bg-card p-4">
             <p className="mb-3 text-sm leading-6 text-destructive">
-              Could not load {targetLanguage.toUpperCase()}. The current article is unchanged.
+              {t('blog.couldNotLoad')} {targetLanguage.toUpperCase()}. {t('blog.currentArticleUnchanged')}
             </p>
             <button
               type="button"
@@ -205,26 +205,26 @@ export default function BlogPostPage() {
               }}
               className="bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-85"
             >
-              Retry {targetLanguage.toUpperCase()}
+              {t('blog.retry')} {targetLanguage.toUpperCase()}
             </button>
           </div>
         )}
 
         {isNotFound && (
-          <p className="py-12 text-center text-muted-foreground">Article not found.</p>
+          <p className="py-12 text-center text-muted-foreground">{t('blog.articleNotFound')}</p>
         )}
 
         {!article && !isNotFound && !isError && (
-          <p className="py-12 text-center text-muted-foreground">Loading…</p>
+          <p className="py-12 text-center text-muted-foreground">{t('blog.loading')}…</p>
         )}
 
         {article && (
           <article ref={articleRef} className="mx-auto max-w-3xl">
-            <div className="mb-6 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <div className="mb-6 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium tracking-[0.14em] text-muted-foreground">
               <span>{article.language.toUpperCase()}</span>
               <span>{new Date(article.date).toLocaleDateString(article.language === 'ko' ? 'ko-KR' : article.language === 'ja' ? 'ja-JP' : 'en-US')}</span>
               <span>{article.author}</span>
-              <span>{article.readTime} {articleTranslations?.blog.readTime}</span>
+              <span>{article.readTime}{article.language === 'ja' ? '' : ' '}{articleTranslations?.blog.readTime}</span>
             </div>
             <h1 className="mb-8 text-4xl font-semibold tracking-tight sm:text-5xl">{article.title}</h1>
 
