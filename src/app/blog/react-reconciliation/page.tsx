@@ -1,6 +1,6 @@
 'use client';
 
-import { getBlogContent, getBlogPost, getRelatedBlogPosts, type BlogPost } from '@/content/blog/metadata';
+import { getArticleNeighbors, getBlogContent, getBlogPost, getRelatedBlogPosts, type BlogPost } from '@/content/blog/metadata';
 import { getTranslations } from '@/content/translations';
 import { useTranslation } from '@/i18n/useTranslation';
 import {
@@ -171,6 +171,7 @@ export default function BlogPostPage() {
   const content = snapshot?.content ?? '';
   const articleTranslations = article ? getTranslations(article.language) : null;
   const relatedArticles = article ? getRelatedBlogPosts(article.id, article.language) : [];
+  const neighbors = article ? getArticleNeighbors(article.id, article.language) : { previous: null, next: null };
   const isError = failedTarget === targetLanguage;
   const isNotFound = !targetArticle;
   const isLoading = !isNotFound && !isError && (!snapshot || requestedLanguage !== null);
@@ -178,13 +179,22 @@ export default function BlogPostPage() {
   return (
     <main>
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-16 lg:px-8">
-        <Link
-          href="/blog"
-          className="mb-12 inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
-        >
-          <ArrowLeft size={20} />
-          {t('blog.title')}
-        </Link>
+        {article ? (
+          <nav aria-label={t('blog.breadcrumb')} className="mb-12 overflow-x-auto text-sm">
+            <ol className="flex min-w-max items-center gap-2 text-muted-foreground">
+              <li><Link href="/blog" className="font-medium text-primary underline-offset-4 hover:underline">{t('blog.title')}</Link></li>
+              <li aria-hidden="true">/</li>
+              <li><Link href={`/blog?category=${encodeURIComponent(article.categoryId)}`} className="font-medium text-primary underline-offset-4 hover:underline">{article.category}</Link></li>
+              <li aria-hidden="true">/</li>
+              <li aria-current="page" className="max-w-[16rem] truncate">{article.title}</li>
+            </ol>
+          </nav>
+        ) : (
+          <Link href="/blog" className="mb-12 inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline">
+            <ArrowLeft size={20} aria-hidden="true" />
+            {t('blog.title')}
+          </Link>
+        )}
 
         {isLoading && (
           <p role="status" aria-live="polite" className="mb-6 text-sm text-primary">
@@ -250,15 +260,22 @@ export default function BlogPostPage() {
           </section>
         )}
 
-        <div className="mx-auto mt-16 max-w-3xl border-t border-border pt-8">
-          <Link
-            href="/blog"
-            className="inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
-          >
-            <ArrowLeft size={20} />
-            {t('blog.title')}
-          </Link>
-        </div>
+        {article && (neighbors.previous || neighbors.next) && (
+          <nav aria-label={t('blog.articleNavigation')} className="mx-auto mt-16 grid max-w-3xl gap-4 border-t border-border pt-8 sm:grid-cols-2">
+            {neighbors.previous ? (
+              <Link href={`/blog/${neighbors.previous.id}`} className="border border-border bg-card p-5 transition-colors hover:bg-secondary">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">← {t('blog.previousArticle')}</span>
+                <h2 className="mt-3 text-lg font-semibold tracking-tight">{neighbors.previous.title}</h2>
+              </Link>
+            ) : <span aria-hidden="true" />}
+            {neighbors.next ? (
+              <Link href={`/blog/${neighbors.next.id}`} className="border border-border bg-card p-5 text-right transition-colors hover:bg-secondary">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('blog.nextArticle')} →</span>
+                <h2 className="mt-3 text-lg font-semibold tracking-tight">{neighbors.next.title}</h2>
+              </Link>
+            ) : null}
+          </nav>
+        )}
       </div>
     </main>
   );

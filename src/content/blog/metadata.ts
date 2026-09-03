@@ -267,6 +267,18 @@ export function getAllBlogPosts(language: Language): BlogPost[] {
     .sort((a, b) => b.date.localeCompare(a.date))
 }
 
+export function getArticleNeighbors(id: string, language: Language): {
+  previous: BlogPost | null;
+  next: BlogPost | null;
+} {
+  const posts = getAllBlogPosts(language);
+  const index = posts.findIndex((post) => post.id === id);
+  return {
+    previous: index >= 0 ? posts[index + 1] ?? null : null,
+    next: index > 0 ? posts[index - 1] ?? null : null,
+  };
+}
+
 export function getRelatedBlogPosts(id: string, language: Language): BlogPost[] {
   const current = blogPostsRegistry[id]?.[language];
   const currentPost = getBlogPost(id, language);
