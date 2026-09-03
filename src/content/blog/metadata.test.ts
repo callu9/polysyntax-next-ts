@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 // @ts-expect-error Node's type-stripping runner requires the .ts extension.
-import { getAllBlogPosts, getBlogContent, getBlogContentBySlug, getRelatedBlogPosts } from './metadata.ts';
+import { getAllBlogPosts, getArticleNeighbors, getBlogContent, getBlogContentBySlug, getRelatedBlogPosts } from './metadata.ts';
 
 test('all supported languages expose twelve posts with readable bodies', async () => {
   for (const language of ['en', 'ko', 'ja'] as const) {
@@ -28,6 +28,17 @@ test('every localized post has taxonomy and related posts exclude itself', () =>
   const posts = getAllBlogPosts('ko');
   assert.ok(posts.every((post) => post.category && post.categoryId && post.tags.length > 0 && post.tagIds.length > 0));
   assert.ok(getRelatedBlogPosts('react-reconciliation', 'ko').every((post) => post.id !== 'react-reconciliation'));
+});
+
+test('chronological article neighbors expose only existing adjacent posts', () => {
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(getArticleNeighbors('frontend-observability', 'en')).map(([key, post]) => [key, post?.id ?? null])),
+    { previous: 'component-api', next: null },
+  );
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(getArticleNeighbors('react-reconciliation', 'en')).map(([key, post]) => [key, post?.id ?? null])),
+    { previous: null, next: 'performance-budget' },
+  );
 });
 
 test('registered content still crosses the abortable fetch boundary', async () => {
