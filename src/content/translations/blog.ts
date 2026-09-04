@@ -2,6 +2,7 @@ export const blogTranslations = {
   en: {
     title: 'Blog',
     archive: 'Archive',
+    sampleArchive: 'Sample archive',
     allArticles: 'All Articles',
     noArticles: 'No articles found',
     publishedOn: 'Published on',
@@ -35,6 +36,7 @@ export const blogTranslations = {
   ko: {
     title: '블로그',
     archive: '아카이브',
+    sampleArchive: '샘플 아카이브',
     allArticles: '모든 글',
     noArticles: '글이 없습니다',
     publishedOn: '발행일',
@@ -68,6 +70,7 @@ export const blogTranslations = {
   ja: {
     title: 'ブログ',
     archive: 'アーカイブ',
+    sampleArchive: 'サンプルアーカイブ',
     allArticles: 'すべての記事',
     noArticles: '記事が見つかりません',
     publishedOn: '公開日',
