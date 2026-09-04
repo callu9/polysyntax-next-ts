@@ -2,9 +2,10 @@
 
 import { useTranslation } from '@/i18n/useTranslation';
 import { getTranslations } from '@/content/translations';
+import type { Locale } from '@/lib/localeRoutes';
 
-export default function About() {
-  const { language } = useTranslation();
+export default function About({ forcedLanguage }: { forcedLanguage?: Locale } = {}) {
+  const { language } = useTranslation(forcedLanguage);
   const copy = getTranslations(language)?.about;
 
   if (!copy) return null;

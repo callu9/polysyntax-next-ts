@@ -11,7 +11,8 @@ import {
 } from '@/lib/multilingualReading';
 import { useLanguageStore } from '@/store/languageStore';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
+import { getLocaleFromPath, localePath, type Locale } from '@/lib/localeRoutes';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
@@ -106,12 +107,16 @@ function restoreReadingPosition(article: HTMLElement, position: ReadingPosition)
   });
 }
 
-export default function BlogPostPage({ postId: providedPostId }: { postId?: string } = {}) {
+export default function BlogPostPage({ postId: providedPostId, forcedLanguage }: { postId?: string; forcedLanguage?: Locale } = {}) {
   const params = useParams<{ id?: string }>();
+  const pathname = usePathname();
+  const routeLanguage = getLocaleFromPath(pathname);
   const postId = providedPostId ?? params?.id ?? 'react-reconciliation';
   const { language, requestedLanguage, setLanguage } = useLanguageStore();
-  const { t } = useTranslation();
-  const targetLanguage = requestedLanguage ?? language;
+  const activeLanguage = forcedLanguage ?? routeLanguage ?? language;
+  const { t } = useTranslation(activeLanguage);
+  const targetLanguage = requestedLanguage ?? activeLanguage;
+  const href = (path: string) => routeLanguage ? localePath(routeLanguage, path) : path;
   const [snapshot, setSnapshot] = useState<ArticleSnapshot | null>(null);
   const [failedTarget, setFailedTarget] = useState<BlogPost['language'] | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -182,15 +187,15 @@ export default function BlogPostPage({ postId: providedPostId }: { postId?: stri
         {article ? (
           <nav aria-label={t('blog.breadcrumb')} className="mb-12 overflow-x-auto text-sm">
             <ol className="flex min-w-max items-center gap-2 text-muted-foreground">
-              <li><Link href="/blog" className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline">{t('blog.title')}</Link></li>
+              <li><Link href={href('/blog')} className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline">{t('blog.title')}</Link></li>
               <li aria-hidden="true">/</li>
-              <li><Link href={`/blog?category=${encodeURIComponent(article.categoryId)}`} className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline">{article.category}</Link></li>
+              <li><Link href={href(`/blog?category=${encodeURIComponent(article.categoryId)}`)} className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline">{article.category}</Link></li>
               <li aria-hidden="true">/</li>
               <li aria-current="page" className="max-w-[16rem] truncate">{article.title}</li>
             </ol>
           </nav>
         ) : (
-          <Link href="/blog" className="mb-12 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline">
+          <Link href={href('/blog')} className="mb-12 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline">
             <ArrowLeft size={20} aria-hidden="true" />
             {t('blog.title')}
           </Link>
@@ -251,7 +256,7 @@ export default function BlogPostPage({ postId: providedPostId }: { postId?: stri
             <h2 className="mb-6 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{articleTranslations?.blog.relatedArticles}</h2>
             <div className="grid gap-4 sm:grid-cols-3">
               {relatedArticles.map((relatedArticle) => (
-                <Link key={relatedArticle.id} href={`/blog/${relatedArticle.id}`} className="border border-border bg-card p-4 transition-colors hover:bg-secondary">
+                <Link key={relatedArticle.id} href={href(`/blog/${relatedArticle.id}`)} className="border border-border bg-card p-4 transition-colors hover:bg-secondary">
                   <h3 className="font-semibold tracking-tight">{relatedArticle.title}</h3>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">{relatedArticle.excerpt}</p>
                 </Link>
@@ -263,13 +268,13 @@ export default function BlogPostPage({ postId: providedPostId }: { postId?: stri
         {article && (neighbors.previous || neighbors.next) && (
           <nav aria-label={t('blog.articleNavigation')} className="mx-auto mt-16 grid max-w-3xl gap-4 border-t border-border pt-8 sm:grid-cols-2">
             {neighbors.previous ? (
-              <Link href={`/blog/${neighbors.previous.id}`} className="border border-border bg-card p-5 transition-colors hover:bg-secondary">
+              <Link href={href(`/blog/${neighbors.previous.id}`)} className="border border-border bg-card p-5 transition-colors hover:bg-secondary">
                 <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">← {t('blog.previousArticle')}</span>
                 <h2 className="mt-3 text-lg font-semibold tracking-tight">{neighbors.previous.title}</h2>
               </Link>
             ) : <span aria-hidden="true" />}
             {neighbors.next ? (
-              <Link href={`/blog/${neighbors.next.id}`} className="border border-border bg-card p-5 text-right transition-colors hover:bg-secondary">
+              <Link href={href(`/blog/${neighbors.next.id}`)} className="border border-border bg-card p-5 text-right transition-colors hover:bg-secondary">
                 <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('blog.nextArticle')} →</span>
                 <h2 className="mt-3 text-lg font-semibold tracking-tight">{neighbors.next.title}</h2>
               </Link>

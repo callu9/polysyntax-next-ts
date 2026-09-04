@@ -1,9 +1,11 @@
 import { useLanguageStore } from '@/store/languageStore';
 import { getTranslations } from '@/content/translations';
+import type { Language } from '@/store/languageStore';
 
-export const useTranslation = () => {
-  const language = useLanguageStore((state) => state.language);
-  const translations = getTranslations(language as 'en' | 'ko' | 'ja');
+export const useTranslation = (forcedLanguage?: Language) => {
+  const storedLanguage = useLanguageStore((state) => state.language);
+  const language = forcedLanguage ?? storedLanguage;
+  const translations = getTranslations(language);
 
   const t = (key: string): string => {
     if (!translations) return key;

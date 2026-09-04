@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { ChevronDown, Menu } from 'lucide-react';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useLanguageStore } from '@/store/languageStore';
 import type { Language } from '@/store/languageStore';
+import { getLocaleFromPath, localePath, stripLocale } from '@/lib/localeRoutes';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,31 +22,47 @@ const navigationItems = [
 ] as const;
 
 export const Header = () => {
-  const { t } = useTranslation();
   const pathname = usePathname();
+  const router = useRouter();
+  const routeLanguage = getLocaleFromPath(pathname);
+  const basePathname = stripLocale(pathname);
+  const { t } = useTranslation(routeLanguage ?? undefined);
   const { language, requestedLanguage, setLanguage, requestLanguage, clearRequestedLanguage } = useLanguageStore();
-  const selectedLanguage = requestedLanguage ?? language;
-  const isArticleRoute = pathname.startsWith('/blog/');
+  const selectedLanguage = requestedLanguage ?? routeLanguage ?? language;
+  const isArticleRoute = basePathname.startsWith('/blog/');
+
+  const localizedHref = (href: string) => routeLanguage ? localePath(routeLanguage, href) : href;
 
   useEffect(() => {
     useLanguageStore.persist.rehydrate();
   }, []);
 
   useEffect(() => {
-    document.documentElement.lang = language;
-  }, [language]);
+    document.documentElement.lang = routeLanguage ?? language;
+  }, [language, routeLanguage]);
+
+  useEffect(() => {
+    if (routeLanguage && language !== routeLanguage) setLanguage(routeLanguage);
+  }, [language, routeLanguage, setLanguage]);
 
   useEffect(() => {
     if (!isArticleRoute) clearRequestedLanguage();
   }, [clearRequestedLanguage, isArticleRoute]);
 
   const selectLanguage = (nextLanguage: Language) => {
+    if (routeLanguage) {
+      const query = typeof window === 'undefined' ? '' : window.location.search;
+      router.push(`${localePath(nextLanguage, basePathname)}${query}`, { scroll: false });
+      return;
+    }
+
     if (isArticleRoute) {
       requestLanguage(nextLanguage);
       return;
     }
 
-    setLanguage(nextLanguage);
+    const query = typeof window === 'undefined' ? '' : window.location.search;
+    router.push(`${localePath(nextLanguage, pathname)}${query}`, { scroll: false });
   };
 
   const languages: { value: Language; label: string }[] = [
@@ -54,7 +71,7 @@ export const Header = () => {
     { value: 'ja', label: '日本語' },
   ];
 
-  const isActive = (href: string) => href === '/' ? pathname === href : pathname.startsWith(href);
+  const isActive = (href: string) => href === '/' ? basePathname === href : basePathname.startsWith(href);
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
@@ -63,7 +80,7 @@ export const Header = () => {
       </a>
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="inline-flex min-h-11 items-center text-lg font-semibold tracking-tight text-foreground">
+          <Link href={localizedHref('/')} className="inline-flex min-h-11 items-center text-lg font-semibold tracking-tight text-foreground">
             {t('common.siteName')}
           </Link>
 
@@ -71,7 +88,7 @@ export const Header = () => {
             {navigationItems.map(({ href, key }) => (
               <Link
                 key={href}
-                href={href}
+                href={localizedHref(href)}
                 aria-current={isActive(href) ? 'page' : undefined}
                 className={`inline-flex min-h-11 items-center border-b pb-1 text-xs font-medium uppercase tracking-[0.16em] transition-colors ${isActive(href) ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
               >
@@ -96,7 +113,7 @@ export const Header = () => {
                     asChild
                     className={isActive(href) ? 'bg-accent text-accent-foreground font-semibold' : undefined}
                   >
-                    <Link href={href} aria-current={isActive(href) ? 'page' : undefined} className="min-h-11 cursor-pointer px-3 py-2">
+                    <Link href={localizedHref(href)} aria-current={isActive(href) ? 'page' : undefined} className="min-h-11 cursor-pointer px-3 py-2">
                       {t(key)}
                     </Link>
                   </DropdownMenuItem>
