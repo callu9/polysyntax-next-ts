@@ -7,31 +7,35 @@ import { getAllBlogPosts } from '@/content/blog/metadata';
 import { getBlogFilterOptions, filterBlogPosts } from '@/lib/blogDiscovery';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useLanguageStore } from '@/store/languageStore';
+import { getLocaleFromPath, localePath, type Locale } from '@/lib/localeRoutes';
 
 const PAGE_SIZE = 6;
 
-export default function Blog() {
+export default function Blog({ forcedLanguage }: { forcedLanguage?: Locale } = {}) {
   return (
     <Suspense fallback={<main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24 lg:px-8" />}>
-      <BlogArchive />
+      <BlogArchive forcedLanguage={forcedLanguage} />
     </Suspense>
   );
 }
 
-function BlogArchive() {
-  const { t } = useTranslation();
+function BlogArchive({ forcedLanguage }: { forcedLanguage?: Locale }) {
+  const pathname = usePathname();
+  const routeLanguage = getLocaleFromPath(pathname);
+  const { t } = useTranslation(forcedLanguage ?? routeLanguage ?? undefined);
   const { language } = useLanguageStore();
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const articles = getAllBlogPosts(language);
+  const activeLanguage = forcedLanguage ?? routeLanguage ?? language;
+  const href = (path: string) => routeLanguage ? localePath(routeLanguage, path) : path;
+  const articles = getAllBlogPosts(activeLanguage);
   const options = getBlogFilterOptions(articles);
   const query = searchParams.get('q') ?? '';
   const category = searchParams.get('category') ?? '';
   const tag = searchParams.get('tag') ?? '';
   const requestedPage = Number(searchParams.get('page') ?? 1);
   const result = filterBlogPosts(articles, { query, category, tag, page: requestedPage, pageSize: PAGE_SIZE });
-  const locale = language === 'ko' ? 'ko-KR' : language === 'ja' ? 'ja-JP' : 'en-US';
+  const locale = activeLanguage === 'ko' ? 'ko-KR' : activeLanguage === 'ja' ? 'ja-JP' : 'en-US';
   const hasFilters = Boolean(query || category || tag || result.page > 1);
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null);
   const previousPage = useRef(result.page);
@@ -77,7 +81,7 @@ function BlogArchive() {
         <p className="mb-5 text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t('blog.archive')}</p>
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-8">
           <h1 className="text-5xl font-semibold tracking-tight sm:text-6xl">{t('blog.title')}</h1>
-          <p aria-live="polite" className="text-sm text-muted-foreground">{result.total} {t('blog.results')} · {language.toUpperCase()}</p>
+          <p aria-live="polite" className="text-sm text-muted-foreground">{result.total} {t('blog.results')} · {activeLanguage.toUpperCase()}</p>
         </div>
 
         <div className="grid gap-4 border-b border-border py-6 md:grid-cols-[1.5fr_1fr_1fr_auto] md:items-end">
@@ -139,18 +143,18 @@ function BlogArchive() {
                 <article key={article.id} className="group grid gap-5 py-8 md:grid-cols-[10rem_1fr] md:gap-10">
                   <div className="font-mono text-xs font-medium tracking-[0.14em] text-muted-foreground">
                     <p>{new Date(article.date).toLocaleDateString(locale)}</p>
-                    <p className="mt-2">{article.readTime}{language === 'ja' ? '' : ' '}{t('blog.readTime')}</p>
+                    <p className="mt-2">{article.readTime}{activeLanguage === 'ja' ? '' : ' '}{t('blog.readTime')}</p>
                     <p className="mt-2">{article.category}</p>
                   </div>
                   <div>
                     <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                      <Link href={`/blog/${article.id}`} className="transition-colors group-hover:text-primary">{article.title}</Link>
+                      <Link href={href(`/blog/${article.id}`)} className="transition-colors group-hover:text-primary">{article.title}</Link>
                     </h2>
                     <p className="mt-3 max-w-2xl leading-7 text-muted-foreground">{article.excerpt}</p>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                       {article.tags.map((articleTag) => <span key={articleTag} className="border border-border px-2 py-1">#{articleTag}</span>)}
                     </div>
-                    <Link href={`/blog/${article.id}`} className="mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-primary">{t('home.readMore')} →</Link>
+                    <Link href={href(`/blog/${article.id}`)} className="mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-primary">{t('home.readMore')} →</Link>
                   </div>
                 </article>
               ))}

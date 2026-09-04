@@ -2,9 +2,14 @@
 
 import { useTranslation } from '@/i18n/useTranslation';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { getLocaleFromPath, localePath } from '@/lib/localeRoutes';
 
 export const Footer = () => {
-  const { t } = useTranslation();
+  const pathname = usePathname();
+  const routeLanguage = getLocaleFromPath(pathname);
+  const { t } = useTranslation(routeLanguage ?? undefined);
+  const href = (path: string) => routeLanguage ? localePath(routeLanguage, path) : path;
   const year = new Date().getFullYear();
 
   return (
@@ -18,9 +23,9 @@ export const Footer = () => {
           <nav aria-label={t('common.navigation')}>
             <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{t('common.navigation')}</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/" className="inline-flex min-h-11 items-center text-muted-foreground transition-colors hover:text-primary">{t('common.home')}</Link></li>
-              <li><Link href="/blog" className="inline-flex min-h-11 items-center text-muted-foreground transition-colors hover:text-primary">{t('common.blog')}</Link></li>
-              <li><Link href="/about" className="inline-flex min-h-11 items-center text-muted-foreground transition-colors hover:text-primary">{t('common.about')}</Link></li>
+              <li><Link href={href('/')} className="inline-flex min-h-11 items-center text-muted-foreground transition-colors hover:text-primary">{t('common.home')}</Link></li>
+              <li><Link href={href('/blog')} className="inline-flex min-h-11 items-center text-muted-foreground transition-colors hover:text-primary">{t('common.blog')}</Link></li>
+              <li><Link href={href('/about')} className="inline-flex min-h-11 items-center text-muted-foreground transition-colors hover:text-primary">{t('common.about')}</Link></li>
             </ul>
           </nav>
           <div>

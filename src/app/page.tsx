@@ -5,11 +5,17 @@ import { getAllBlogPosts } from "@/content/blog/metadata";
 import { getHomeEditorial } from "@/lib/blogDiscovery";
 import { useTranslation } from "@/i18n/useTranslation";
 import { useLanguageStore } from "@/store/languageStore";
+import { usePathname } from 'next/navigation';
+import { getLocaleFromPath, localePath, type Locale } from '@/lib/localeRoutes';
 
-export default function Home() {
-  const { t } = useTranslation();
+export default function Home({ forcedLanguage }: { forcedLanguage?: Locale } = {}) {
+  const { t } = useTranslation(forcedLanguage);
   const { language } = useLanguageStore();
-  const editorial = getHomeEditorial(getAllBlogPosts(language));
+  const pathname = usePathname();
+  const routeLanguage = getLocaleFromPath(pathname);
+  const activeLanguage = forcedLanguage ?? routeLanguage ?? language;
+  const href = (path: string) => routeLanguage ? localePath(routeLanguage, path) : path;
+  const editorial = getHomeEditorial(getAllBlogPosts(activeLanguage));
   const featuredArticle = editorial.featured;
 
   return (
@@ -38,11 +44,11 @@ export default function Home() {
           <p className="border border-border py-16 text-center text-muted-foreground">{t('home.noArticles')}</p>
         ) : (
           <>
-          <Link href={`/blog/${featuredArticle.id}`} className="group block border border-border bg-card p-6 transition-colors hover:bg-secondary sm:p-8">
+          <Link href={href(`/blog/${featuredArticle.id}`)} className="group block border border-border bg-card p-6 transition-colors hover:bg-secondary sm:p-8">
             <div className="mb-12 flex flex-wrap gap-x-4 gap-y-2 font-mono text-xs font-medium tracking-[0.14em] text-muted-foreground">
-              <span>{new Date(featuredArticle.date).toLocaleDateString(language === "ko" ? "ko-KR" : language === "ja" ? "ja-JP" : "en-US")}</span>
-              <span>{featuredArticle.readTime}{language === 'ja' ? '' : ' '}{t("blog.readTime")}</span>
-              <span>{language.toUpperCase()}</span>
+              <span>{new Date(featuredArticle.date).toLocaleDateString(activeLanguage === "ko" ? "ko-KR" : activeLanguage === "ja" ? "ja-JP" : "en-US")}</span>
+              <span>{featuredArticle.readTime}{activeLanguage === 'ja' ? '' : ' '}{t("blog.readTime")}</span>
+              <span>{activeLanguage.toUpperCase()}</span>
             </div>
             <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
               <h3 className="text-3xl font-semibold tracking-tight sm:text-4xl">{featuredArticle.title}</h3>
@@ -55,8 +61,8 @@ export default function Home() {
             {editorial.latest.length > 0 && (
               <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {editorial.latest.map((article) => (
-                  <Link key={article.id} href={`/blog/${article.id}`} className="group border border-border bg-card p-5 transition-colors hover:bg-secondary">
-                    <p className="font-mono text-xs text-muted-foreground">{new Date(article.date).toLocaleDateString(language === "ko" ? "ko-KR" : language === "ja" ? "ja-JP" : "en-US")}</p>
+                  <Link key={article.id} href={href(`/blog/${article.id}`)} className="group border border-border bg-card p-5 transition-colors hover:bg-secondary">
+                    <p className="font-mono text-xs text-muted-foreground">{new Date(article.date).toLocaleDateString(activeLanguage === "ko" ? "ko-KR" : activeLanguage === "ja" ? "ja-JP" : "en-US")}</p>
                     <h3 className="mt-8 text-xl font-semibold tracking-tight group-hover:text-primary">{article.title}</h3>
                     <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">{article.excerpt}</p>
                   </Link>

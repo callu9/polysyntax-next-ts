@@ -1,14 +1,15 @@
 import type { Metadata } from 'next';
-import { absoluteUrl, getSiteOrigin } from '@/lib/seo';
+import { absoluteUrl, getLocaleAlternates, getSiteOrigin } from '@/lib/seo';
 
 export async function generateMetadata(): Promise<Metadata> {
   const title = 'Blog | PolySyntax';
   const description = 'Browse PolySyntax frontend articles about rendering, CSS, accessibility, and performance.';
-  const canonical = absoluteUrl(await getSiteOrigin(), '/blog');
+  const origin = await getSiteOrigin();
+  const canonical = absoluteUrl(origin, '/blog');
   return {
     title,
     description,
-    alternates: { canonical },
+    alternates: { canonical, languages: await getLocaleAlternates(origin, '/blog') },
     openGraph: { title, description, url: canonical, siteName: 'PolySyntax' },
     twitter: { card: 'summary', title, description },
   };
