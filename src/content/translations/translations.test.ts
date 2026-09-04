@@ -14,6 +14,7 @@ test('each supported language has complete shared UI copy', () => {
     assert.equal(aboutTranslations[language].topics.length, 6);
     assert.equal(typeof aboutTranslations[language].supportedLanguagesDescription, 'string');
     assert.equal(typeof blogTranslations[language].archive, 'string');
+    assert.equal(typeof blogTranslations[language].sampleArchive, 'string');
     assert.equal(typeof blogTranslations[language].articleNotFound, 'string');
     assert.equal(typeof blogTranslations[language].currentArticleUnchanged, 'string');
   }

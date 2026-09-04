@@ -11,6 +11,7 @@ test('article metadata keeps the verified canonical and publication date', () =>
   assert.equal(metadata.alternates?.canonical, 'https://example.test/blog/react-reconciliation');
   assert.equal(metadata.description, post.excerpt);
   assert.equal(metadata.openGraph?.type, 'article');
+  assert.equal(metadata.openGraph?.images?.[0]?.url, 'https://example.test/opengraph-image.svg');
   assert.equal(metadata.openGraph?.publishedTime, post.date);
   assert.equal(metadata.openGraph?.modifiedTime, undefined);
 });

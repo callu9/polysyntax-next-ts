@@ -40,6 +40,7 @@ const notoSansJP = Noto_Sans_JP({
 export async function generateMetadata(): Promise<Metadata> {
   const origin = await getSiteOrigin();
   const canonical = absoluteUrl(origin, '/');
+  const image = absoluteUrl(origin, '/opengraph-image.svg');
   return {
     title: "PolySyntax - Multilingual Frontend Reading",
     description: "One frontend idea, three languages.",
@@ -49,11 +50,13 @@ export async function generateMetadata(): Promise<Metadata> {
       description: "One frontend idea, three languages.",
       url: canonical,
       siteName: 'PolySyntax',
+      images: [{ url: image, width: 1200, height: 630, alt: 'PolySyntax' }],
     },
     twitter: {
       card: 'summary',
       title: "PolySyntax - Multilingual Frontend Reading",
       description: "One frontend idea, three languages.",
+      images: [image],
     },
   };
 }

@@ -15,6 +15,10 @@ export function absoluteUrl(origin: string | null, path: string): string {
   return origin ? new URL(path, origin).toString() : path;
 }
 
+function ogImage(canonical: string): string {
+  return canonical.startsWith('http') ? new URL('/opengraph-image.svg', canonical).toString() : '/opengraph-image.svg';
+}
+
 export async function getLocaleAlternates(origin: string | null, pathname: string): Promise<Record<string, string>> {
   const { LOCALES, localePath } = await import('./localeRoutes');
   return Object.fromEntries(LOCALES.map((locale) => [locale, absoluteUrl(origin, localePath(locale, pathname))]));
@@ -27,8 +31,8 @@ export async function getLocalizedPageMetadata(title: string, description: strin
     title,
     description,
     alternates: { canonical, languages },
-    openGraph: { title, description, url: canonical, siteName: 'PolySyntax' },
-    twitter: { card: 'summary', title, description },
+    openGraph: { title, description, url: canonical, siteName: 'PolySyntax', images: [{ url: ogImage(canonical), width: 1200, height: 630, alt: 'PolySyntax' }] },
+    twitter: { card: 'summary', title, description, images: [ogImage(canonical)] },
   };
 }
 
@@ -43,6 +47,7 @@ export function getArticleMetadata(post: BlogPost, canonical: string, languages?
       title: post.title,
       description: post.excerpt,
       siteName: 'PolySyntax',
+      images: [{ url: ogImage(canonical), width: 1200, height: 630, alt: 'PolySyntax' }],
       publishedTime: post.date,
       authors: [post.author],
     },
@@ -50,6 +55,7 @@ export function getArticleMetadata(post: BlogPost, canonical: string, languages?
       card: 'summary',
       title: post.title,
       description: post.excerpt,
+      images: [ogImage(canonical)],
     },
   };
 }

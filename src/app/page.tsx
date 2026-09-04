@@ -21,7 +21,7 @@ export default function Home({ forcedLanguage }: { forcedLanguage?: Locale } = {
   return (
     <main id="main-content" tabIndex={-1}>
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24 lg:px-8">
-        <p className="mb-6 text-xs font-semibold uppercase tracking-[0.18em] text-primary">Issue 001</p>
+        <p className="mb-6 text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t('blog.sampleArchive')}</p>
         <div className="grid gap-12 border-b border-border pb-16 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
           <div>
             <h1 className="max-w-3xl text-5xl font-semibold tracking-tight sm:text-6xl">{t("home.title")}</h1>
@@ -46,6 +46,7 @@ export default function Home({ forcedLanguage }: { forcedLanguage?: Locale } = {
           <>
           <Link href={href(`/blog/${featuredArticle.id}`)} className="group block border border-border bg-card p-6 transition-colors hover:bg-secondary sm:p-8">
             <div className="mb-12 flex flex-wrap gap-x-4 gap-y-2 font-mono text-xs font-medium tracking-[0.14em] text-muted-foreground">
+              <span>{t('blog.sampleArchive')}</span>
               <span>{new Date(featuredArticle.date).toLocaleDateString(activeLanguage === "ko" ? "ko-KR" : activeLanguage === "ja" ? "ja-JP" : "en-US")}</span>
               <span>{featuredArticle.readTime}{activeLanguage === 'ja' ? '' : ' '}{t("blog.readTime")}</span>
               <span>{activeLanguage.toUpperCase()}</span>
@@ -62,7 +63,10 @@ export default function Home({ forcedLanguage }: { forcedLanguage?: Locale } = {
               <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {editorial.latest.map((article) => (
                   <Link key={article.id} href={href(`/blog/${article.id}`)} className="group border border-border bg-card p-5 transition-colors hover:bg-secondary">
-                    <p className="font-mono text-xs text-muted-foreground">{new Date(article.date).toLocaleDateString(activeLanguage === "ko" ? "ko-KR" : activeLanguage === "ja" ? "ja-JP" : "en-US")}</p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-xs text-muted-foreground">
+                      <span>{t('blog.sampleArchive')}</span>
+                      <span>{new Date(article.date).toLocaleDateString(activeLanguage === "ko" ? "ko-KR" : activeLanguage === "ja" ? "ja-JP" : "en-US")}</span>
+                    </div>
                     <h3 className="mt-8 text-xl font-semibold tracking-tight group-hover:text-primary">{article.title}</h3>
                     <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">{article.excerpt}</p>
                   </Link>
