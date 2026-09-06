@@ -25,6 +25,10 @@ export function getDocumentLocale(pathname: string): Locale {
   return getLocaleFromPath(pathname) ?? 'en';
 }
 
+export function resolveArticleLanguage(pathname: string, language: Locale): Locale {
+  return getLocaleFromPath(pathname) ?? language;
+}
+
 export function changeLocalePath(pathname: string, locale: Locale): string {
   return localePath(locale, stripLocale(pathname));
 }

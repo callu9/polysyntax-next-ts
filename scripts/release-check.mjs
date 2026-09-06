@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import net from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { getAllBlogPosts } from '../src/content/blog/metadata.ts';
+import { getBlogContentBySlug } from '../src/content/blog/content.ts';
 import {
   canCommitRequest,
   getArticleHeadingScrollTarget,
@@ -157,7 +161,14 @@ await check('fault-injection-timeout-retry-latest-wins', () => {
 });
 
 function findBrowser() {
-  const candidates = [process.env.BROWSER_BIN, 'chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable'].filter(Boolean);
+  const candidates = [
+    process.env.BROWSER_BIN,
+    'chromium',
+    'chromium-browser',
+    'google-chrome',
+    'google-chrome-stable',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ].filter(Boolean);
   for (const candidate of candidates) {
     if (existsSync(candidate)) return candidate;
     try {
@@ -169,31 +180,225 @@ function findBrowser() {
   return null;
 }
 
-const browser = findBrowser();
-if (!browser) {
-  record('browser.375px', 'skip', 'No supported headless Chromium binary is installed; server HTML checks still ran.');
-  record('browser.1440px', 'skip', 'No supported headless Chromium binary is installed; server HTML checks still ran.');
-  record('browser.korean-hydration-console-errors', 'skip', 'Console instrumentation requires a browser/CDP dependency absent from this repository.');
-} else {
-  for (const width of [375, 1440]) {
-    await check(`browser.${width}px`, () => {
-      const body = execFileSync(browser, [
-        '--headless=new',
-        '--no-sandbox',
-        '--disable-gpu',
-        '--disable-dev-shm-usage',
-        '--dump-dom',
-        `--window-size=${width},900`,
-        '--virtual-time-budget=5000',
-        urlFor('/ko/blog/react-reconciliation'),
-      ], { encoding: 'utf8', timeout: 20000, maxBuffer: 10 * 1024 * 1024 });
-      requireCondition(body.includes('<html lang="ko"'), `browser ${width}px: Korean document lang missing`);
-      requireCondition(/<article\b/i.test(body), `browser ${width}px: article missing`);
-      requireCondition(/<h1\b/i.test(body), `browser ${width}px: H1 missing`);
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getFreePort() {
+  const server = net.createServer();
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const { port } = server.address();
+  await new Promise((resolve) => server.close(resolve));
+  return port;
+}
+
+async function getJson(url, timeoutMs = 1000) {
+  const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+  if (!response.ok) throw new Error(`${url} returned ${response.status}`);
+  return response.json();
+}
+
+async function waitForPage(port, timeoutMs = 10000) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError = 'browser target was not available';
+  while (Date.now() < deadline) {
+    try {
+      const targets = await getJson(`http://127.0.0.1:${port}/json/list`);
+      const page = targets.find((target) => target.type === 'page');
+      if (page?.webSocketDebuggerUrl) return page;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await delay(100);
+  }
+  throw new Error(lastError);
+}
+
+class DevToolsClient {
+  constructor(url) {
+    this.url = url;
+    this.nextId = 0;
+    this.pending = new Map();
+    this.events = [];
+  }
+
+  async connect() {
+    this.socket = new WebSocket(this.url);
+    this.socket.addEventListener('message', ({ data }) => {
+      const message = JSON.parse(String(data));
+      if (message.id && this.pending.has(message.id)) {
+        const { resolve, reject } = this.pending.get(message.id);
+        this.pending.delete(message.id);
+        if (message.error) reject(new Error(message.error.message));
+        else resolve(message.result);
+        return;
+      }
+      this.events.push(message);
+    });
+    await new Promise((resolve, reject) => {
+      this.socket.addEventListener('open', resolve, { once: true });
+      this.socket.addEventListener('error', () => reject(new Error('could not connect to browser DevTools')), { once: true });
     });
   }
-  record('browser.korean-hydration-console-errors', 'skip', 'DOM validation ran at both viewports; console instrumentation requires a browser/CDP dependency absent from this repository.');
+
+  command(method, params = {}) {
+    const id = ++this.nextId;
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      this.socket.send(JSON.stringify({ id, method, params }));
+    });
+  }
+
+  close() {
+    this.socket?.close();
+  }
 }
+
+function eventDetails(event) {
+  if (event.method === 'Runtime.consoleAPICalled' && event.params.type === 'error') {
+    return `console.error: ${event.params.args.map((arg) => arg.value ?? arg.description ?? '').join(' ')}`;
+  }
+  if (event.method === 'Runtime.exceptionThrown') {
+    return `uncaught exception: ${event.params.exceptionDetails.text}`;
+  }
+  if (event.method === 'Log.entryAdded' && event.params.entry.level === 'error') {
+    return `browser log error: ${event.params.entry.text}`;
+  }
+  return null;
+}
+
+async function runBrowserPage(browserPath, pathname, width, persistedLanguage) {
+  const port = await getFreePort();
+  const userDataDir = mkdtempSync(join(tmpdir(), 'polysyntax-release-browser-'));
+  const child = spawn(browserPath, [
+    '--headless=new',
+    '--no-sandbox',
+    '--disable-gpu',
+    '--disable-dev-shm-usage',
+    '--disable-background-networking',
+    '--disable-extensions',
+    '--no-first-run',
+    '--no-default-browser-check',
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${userDataDir}`,
+    `--window-size=${width},900`,
+    'about:blank',
+  ], { detached: true, stdio: ['ignore', 'ignore', 'pipe'] });
+
+  let client;
+  try {
+    const target = await waitForPage(port);
+    client = new DevToolsClient(target.webSocketDebuggerUrl);
+    await client.connect();
+    await client.command('Runtime.enable');
+    await client.command('Log.enable');
+    await client.command('Network.enable');
+    await client.command('Page.enable');
+    await client.command('Emulation.setDeviceMetricsOverride', {
+      width,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+      screenWidth: width,
+      screenHeight: 900,
+    });
+
+    await client.command('Page.navigate', { url: urlFor('/') });
+    await delay(300);
+    const storage = persistedLanguage
+      ? `localStorage.setItem('language-storage', ${JSON.stringify(JSON.stringify({ state: { language: persistedLanguage }, version: 0 }))})`
+      : "localStorage.removeItem('language-storage')";
+    await client.command('Runtime.evaluate', { expression: storage });
+    await client.command('Page.navigate', { url: urlFor(pathname) });
+
+    const expectedPathname = persistedLanguage ? '/ja/blog/react-reconciliation' : pathname;
+    const expectedPost = persistedLanguage ? posts.ja.find((post) => post.id === 'react-reconciliation') : posts.ko.find((post) => post.id === 'react-reconciliation');
+    const contentMarker = getBlogContentBySlug(expectedPost.slug).split('\n').find((line) => line && !line.startsWith('#'));
+    let state = null;
+    const deadline = Date.now() + 15000;
+    while (Date.now() < deadline) {
+      try {
+        const result = await client.command('Runtime.evaluate', {
+          returnByValue: true,
+          expression: `(() => {
+            const article = document.querySelector('article');
+            return {
+              pathname: window.location.pathname,
+              lang: document.documentElement.lang,
+              h1: document.querySelector('h1')?.textContent ?? '',
+              body: article?.textContent ?? '',
+              storage: localStorage.getItem('language-storage'),
+              viewport: window.innerWidth,
+              overflow: document.documentElement.scrollWidth > window.innerWidth,
+            };
+          })()`,
+        });
+        state = result.result?.value ?? null;
+        if (state?.pathname === expectedPathname && state.lang === expectedPost.language && state.h1 === expectedPost.title && state.body.includes(contentMarker)) break;
+      } catch {
+        // Navigation can briefly destroy the evaluation context.
+      }
+      await delay(100);
+    }
+
+    const errors = client.events.map(eventDetails).filter(Boolean);
+    const markdownRequests = client.events
+      .filter((event) => event.method === 'Network.requestWillBeSent')
+      .map((event) => new URL(event.params.request.url).pathname)
+      .filter((requestPath) => requestPath.startsWith('/blog/content/'));
+    return { state, errors, markdownRequests };
+  } finally {
+    client?.close();
+    try {
+      process.kill(-child.pid, 'SIGKILL');
+    } catch {
+      child.kill('SIGKILL');
+    }
+    await delay(100);
+    rmSync(userDataDir, { recursive: true, force: true });
+  }
+}
+
+const browser = findBrowser();
+const koreanBrowserResults = [];
+for (const width of [375, 1440]) {
+  await check(`browser.${width}px`, async () => {
+    requireCondition(browser, 'No supported headless Chromium binary is installed');
+    const result = await runBrowserPage(browser, '/ko/blog/react-reconciliation', width);
+    koreanBrowserResults.push(result);
+    const post = posts.ko.find((candidate) => candidate.id === 'react-reconciliation');
+    requireCondition(result.state?.viewport === width, `browser ${width}px: viewport was not applied`);
+    requireCondition(result.state?.pathname === '/ko/blog/react-reconciliation', `browser ${width}px: unexpected URL`);
+    requireCondition(result.state?.lang === 'ko', `browser ${width}px: Korean document lang missing`);
+    requireCondition(result.state?.h1 === post.title, `browser ${width}px: localized H1 missing`);
+    const contentMarker = getBlogContentBySlug(post.slug).split('\n').find((line) => line && !line.startsWith('#'));
+    requireCondition(result.state?.body.includes(contentMarker), `browser ${width}px: localized article body missing`);
+    requireCondition(!result.state?.overflow, `browser ${width}px: horizontal overflow detected`);
+  });
+}
+
+await check('browser.legacy-persisted-ja', async () => {
+  requireCondition(browser, 'No supported headless Chromium binary is installed');
+  const result = await runBrowserPage(browser, '/blog/react-reconciliation', 375, 'ja');
+  const persisted = JSON.parse(result.state?.storage ?? 'null');
+  const post = posts.ja.find((candidate) => candidate.id === 'react-reconciliation');
+  requireCondition(result.state?.pathname === '/ja/blog/react-reconciliation', 'legacy article did not transition to the persisted locale URL');
+  requireCondition(result.state?.lang === 'ja', 'legacy article did not preserve the persisted document language');
+  requireCondition(result.state?.h1 === post.title, 'legacy article did not render the persisted-language H1');
+  const contentMarker = getBlogContentBySlug(post.slug).split('\n').find((line) => line && !line.startsWith('#'));
+  requireCondition(result.state?.body.includes(contentMarker), 'legacy article did not render the persisted-language body');
+  requireCondition(persisted?.state?.language === 'ja', 'legacy article overwrote the persisted language');
+  requireCondition(result.markdownRequests.filter((requestPath) => requestPath.endsWith('-ja')).length === 1, 'legacy article did not make exactly one persisted-language Markdown request');
+});
+
+await check('browser.korean-hydration-console-errors', () => {
+  requireCondition(browser, 'No supported headless Chromium binary is installed');
+  const errors = koreanBrowserResults.flatMap((result) => result.errors);
+  requireCondition(errors.length === 0, `unexpected browser console/hydration errors: ${errors.join(' | ')}`);
+});
 
 const passed = results.filter((result) => result.status === 'pass').length;
 const skipped = results.filter((result) => result.status === 'skip').length;

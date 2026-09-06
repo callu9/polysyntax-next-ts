@@ -8,6 +8,7 @@ import {
   isLocale,
   localePath,
   profileRedirectPath,
+  resolveArticleLanguage,
   resolveLanguageSwitch,
   stripLocale,
 } from './localeRoutes.ts';
@@ -26,6 +27,11 @@ test('document locale follows the URL and defaults legacy routes to English', ()
   assert.equal(getDocumentLocale('/ko/blog/article'), 'ko');
   assert.equal(getDocumentLocale('/ja/about'), 'ja');
   assert.equal(getDocumentLocale('/blog/article'), 'en');
+});
+
+test('legacy article routes retain an existing language while localized routes follow the URL', () => {
+  assert.equal(resolveArticleLanguage('/blog/react-reconciliation', 'ja'), 'ja');
+  assert.equal(resolveArticleLanguage('/ko/blog/react-reconciliation', 'ja'), 'ko');
 });
 
 test('article language switches load content before changing locale URLs', () => {

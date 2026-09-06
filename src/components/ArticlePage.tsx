@@ -14,7 +14,7 @@ import {
 import { useLanguageStore } from '@/store/languageStore';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { changeLocalePath, getLocaleFromPath, localePath, type Locale } from '@/lib/localeRoutes';
+import { changeLocalePath, getLocaleFromPath, localePath, resolveArticleLanguage, type Locale } from '@/lib/localeRoutes';
 import { formatArchiveDate } from '@/lib/dateFormatting';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
@@ -98,7 +98,8 @@ export default function ArticlePage({ initialArticle, initialContent, locale }: 
   const router = useRouter();
   const routeLanguage = getLocaleFromPath(pathname);
   const { language, requestedLanguage, setLanguage, rememberReadingTransition, takeReadingTransition } = useLanguageStore();
-  const activeLanguage = locale ?? routeLanguage ?? language;
+  const activeLanguage = locale ?? resolveArticleLanguage(pathname, language);
+  const languageStoreHydrated = useLanguageStore.persist.hasHydrated();
   const { t } = useTranslation(activeLanguage);
   const href = (path: string) => routeLanguage ? localePath(routeLanguage, path) : path;
   const [snapshot, setSnapshot] = useState<ArticleSnapshot>(() => ({ article: initialArticle, content: initialContent }));
@@ -108,11 +109,11 @@ export default function ArticlePage({ initialArticle, initialContent, locale }: 
   const pendingPosition = useRef<ReadingPosition | null>(null);
   const latestRequestId = useRef(0);
   const lastStartedRequest = useRef<string | null>(null);
-  const targetLanguage = requestedLanguage ?? snapshot.article.language ?? activeLanguage;
+  const targetLanguage = requestedLanguage ?? activeLanguage;
   const targetArticle = useMemo(() => getBlogPost(snapshot.article.id, targetLanguage), [snapshot.article.id, targetLanguage]);
 
   useEffect(() => {
-    if (!requestedLanguage || !targetArticle || targetArticle.slug === snapshot.article.slug) return;
+    if (!targetArticle || targetArticle.slug === snapshot.article.slug) return;
     const requestKey = `${snapshot.article.slug}:${targetArticle.slug}:${retryCount}`;
     if (lastStartedRequest.current === requestKey) return;
     lastStartedRequest.current = requestKey;
@@ -149,6 +150,11 @@ export default function ArticlePage({ initialArticle, initialContent, locale }: 
   }, [requestedLanguage, retryCount, snapshot.article.id, snapshot.article.slug, takeReadingTransition, targetArticle, targetLanguage]);
 
   useLayoutEffect(() => {
+    if (!languageStoreHydrated) return;
+
+    const isInitialSnapshot = snapshot.article.slug === initialArticle.slug;
+    if (isInitialSnapshot && snapshot.article.language !== activeLanguage) return;
+
     setLanguage(snapshot.article.language);
 
     const committedPath = routeLanguage !== snapshot.article.language
@@ -172,7 +178,7 @@ export default function ArticlePage({ initialArticle, initialContent, locale }: 
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [pathname, rememberReadingTransition, routeLanguage, router, setLanguage, snapshot]);
+  }, [activeLanguage, initialArticle.slug, languageStoreHydrated, pathname, rememberReadingTransition, routeLanguage, router, setLanguage, snapshot]);
 
   const article = snapshot.article;
   const articleTranslations = getTranslations(article.language);
