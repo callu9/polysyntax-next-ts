@@ -7,7 +7,7 @@ import { ChevronDown, Menu } from 'lucide-react';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useLanguageStore } from '@/store/languageStore';
 import type { Language } from '@/store/languageStore';
-import { getLocaleFromPath, localePath, stripLocale } from '@/lib/localeRoutes';
+import { getLocaleFromPath, localePath, resolveLanguageSwitch, stripLocale } from '@/lib/localeRoutes';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,19 +50,13 @@ export const Header = () => {
   }, [clearRequestedLanguage, isArticleRoute]);
 
   const selectLanguage = (nextLanguage: Language) => {
-    if (routeLanguage) {
-      const query = typeof window === 'undefined' ? '' : window.location.search;
-      router.push(`${localePath(nextLanguage, basePathname)}${query}`, { scroll: false });
-      return;
-    }
-
-    if (isArticleRoute) {
+    const query = typeof window === 'undefined' ? '' : window.location.search;
+    const action = resolveLanguageSwitch(pathname, nextLanguage, query);
+    if (action.type === 'load-article') {
       requestLanguage(nextLanguage);
       return;
     }
-
-    const query = typeof window === 'undefined' ? '' : window.location.search;
-    router.push(`${localePath(nextLanguage, pathname)}${query}`, { scroll: false });
+    router.push(action.href, { scroll: false });
   };
 
   const languages: { value: Language; label: string }[] = [

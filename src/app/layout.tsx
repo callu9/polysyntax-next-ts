@@ -3,7 +3,9 @@ import { IBM_Plex_Mono, IBM_Plex_Sans, Noto_Sans_JP, Noto_Sans_KR } from "next/f
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { absoluteUrl, getLocaleAlternates, getSiteOrigin } from "@/lib/seo";
+import { getLocalizedPageMetadata, getSiteOrigin } from "@/lib/seo";
+import { DOCUMENT_LOCALE_HEADER, isLocale } from "@/lib/localeRoutes";
+import { headers } from "next/headers";
 
 const ibmPlexSans = IBM_Plex_Sans({
   variable: "--font-ibm-plex-sans",
@@ -38,36 +40,25 @@ const notoSansJP = Noto_Sans_JP({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const origin = await getSiteOrigin();
-  const canonical = absoluteUrl(origin, '/');
-  const image = absoluteUrl(origin, '/opengraph-image.svg');
-  return {
-    title: "PolySyntax - Multilingual Frontend Reading",
-    description: "One frontend idea, three languages.",
-    alternates: { canonical, languages: await getLocaleAlternates(origin, '/') },
-    openGraph: {
-      title: "PolySyntax - Multilingual Frontend Reading",
-      description: "One frontend idea, three languages.",
-      url: canonical,
-      siteName: 'PolySyntax',
-      images: [{ url: image, width: 1200, height: 630, alt: 'PolySyntax' }],
-    },
-    twitter: {
-      card: 'summary',
-      title: "PolySyntax - Multilingual Frontend Reading",
-      description: "One frontend idea, three languages.",
-      images: [image],
-    },
-  };
+  return getLocalizedPageMetadata(
+    "PolySyntax - Multilingual Frontend Reading",
+    "One frontend idea, three languages.",
+    'en',
+    '/',
+    await getSiteOrigin(),
+  );
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = (await headers()).get(DOCUMENT_LOCALE_HEADER);
+  const documentLocale = locale && isLocale(locale) ? locale : 'en';
+
   return (
-    <html lang="en" className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${notoSansKR.variable} ${notoSansJP.variable}`}>
+    <html lang={documentLocale} className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${notoSansKR.variable} ${notoSansJP.variable}`}>
       <body className="bg-background font-sans text-foreground">
         <Header />
         {children}

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getBlogPost } from '../content/blog/metadata.ts';
-import { absoluteUrl, getArticleMetadata } from './seo.ts';
+import { absoluteUrl, getArticleMetadata, parseSiteOrigin } from './seo.ts';
 
 test('article metadata keeps the verified canonical and publication date', () => {
   const post = getBlogPost('react-reconciliation', 'en');
@@ -14,4 +14,23 @@ test('article metadata keeps the verified canonical and publication date', () =>
   assert.equal(metadata.openGraph?.images?.[0]?.url, 'https://example.test/opengraph-image.svg');
   assert.equal(metadata.openGraph?.publishedTime, post.date);
   assert.equal(metadata.openGraph?.modifiedTime, undefined);
+});
+
+test('site origin accepts only an explicitly configured HTTP origin', () => {
+  assert.equal(parseSiteOrigin('https://example.test/a/path'), 'https://example.test');
+  assert.equal(parseSiteOrigin('http://localhost:3000'), 'http://localhost:3000');
+  assert.equal(parseSiteOrigin('javascript://example.test'), null);
+  assert.equal(parseSiteOrigin('not a URL'), null);
+  assert.equal(parseSiteOrigin(undefined), null);
+});
+
+test('article metadata omits origin-dependent URLs when SITE_URL is unavailable', () => {
+  const post = getBlogPost('react-reconciliation', 'en');
+  assert.ok(post);
+
+  const articleMetadata = getArticleMetadata(post, '/en/blog/react-reconciliation');
+
+  assert.equal(articleMetadata.alternates, undefined);
+  assert.equal(articleMetadata.openGraph?.url, undefined);
+  assert.equal(articleMetadata.openGraph?.images, undefined);
 });

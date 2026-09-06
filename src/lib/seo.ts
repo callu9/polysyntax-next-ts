@@ -2,13 +2,19 @@ import type { Metadata } from 'next';
 import type { BlogPost } from '@/content/blog/metadata';
 import type { Locale } from './localeRoutes';
 
+export function parseSiteOrigin(value: string | undefined): string | null {
+  if (!value) return null;
+
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getSiteOrigin(): Promise<string | null> {
-  const { headers } = await import('next/headers');
-  const requestHeaders = await headers();
-  const host = requestHeaders.get('x-forwarded-host') ?? requestHeaders.get('host');
-  if (!host) return null;
-  const protocol = requestHeaders.get('x-forwarded-proto')?.split(',')[0].trim() || 'http';
-  return `${protocol}://${host}`;
+  return parseSiteOrigin(process.env.SITE_URL);
 }
 
 export function absoluteUrl(origin: string | null, path: string): string {
@@ -25,6 +31,15 @@ export async function getLocaleAlternates(origin: string | null, pathname: strin
 }
 
 export async function getLocalizedPageMetadata(title: string, description: string, locale: Locale, pathname: string, origin: string | null): Promise<Metadata> {
+  if (!origin) {
+    return {
+      title,
+      description,
+      openGraph: { title, description, siteName: 'PolySyntax' },
+      twitter: { card: 'summary', title, description },
+    };
+  }
+
   const languages = await getLocaleAlternates(origin, pathname);
   const canonical = languages[locale];
   return {
@@ -37,17 +52,20 @@ export async function getLocalizedPageMetadata(title: string, description: strin
 }
 
 export function getArticleMetadata(post: BlogPost, canonical: string, languages?: Record<string, string>): Metadata {
+  const hasAbsoluteCanonical = canonical.startsWith('http://') || canonical.startsWith('https://');
   return {
     title: `${post.title} | PolySyntax`,
     description: post.excerpt,
-    alternates: { canonical, ...(languages ? { languages } : {}) },
+    ...(hasAbsoluteCanonical ? { alternates: { canonical, ...(languages ? { languages } : {}) } } : {}),
     openGraph: {
       type: 'article',
-      url: canonical,
       title: post.title,
       description: post.excerpt,
       siteName: 'PolySyntax',
-      images: [{ url: ogImage(canonical), width: 1200, height: 630, alt: 'PolySyntax' }],
+      ...(hasAbsoluteCanonical ? {
+        url: canonical,
+        images: [{ url: ogImage(canonical), width: 1200, height: 630, alt: 'PolySyntax' }],
+      } : {}),
       publishedTime: post.date,
       authors: [post.author],
     },
@@ -55,7 +73,7 @@ export function getArticleMetadata(post: BlogPost, canonical: string, languages?
       card: 'summary',
       title: post.title,
       description: post.excerpt,
-      images: [ogImage(canonical)],
+      ...(hasAbsoluteCanonical ? { images: [ogImage(canonical)] } : {}),
     },
   };
 }
