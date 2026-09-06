@@ -200,6 +200,41 @@ async function getJson(url, timeoutMs = 1000) {
   return response.json();
 }
 
+async function getBrowserState(client) {
+  const result = await client.command('Runtime.evaluate', {
+    returnByValue: true,
+    expression: `(() => {
+      const article = document.querySelector('article');
+      return {
+        pathname: window.location.pathname,
+        lang: document.documentElement.lang,
+        h1: document.querySelector('h1')?.textContent ?? '',
+        body: article?.textContent ?? '',
+        storage: localStorage.getItem('language-storage'),
+        viewport: window.innerWidth,
+        overflow: document.documentElement.scrollWidth > window.innerWidth,
+      };
+    })()`,
+  });
+  return result.result?.value ?? null;
+}
+
+async function waitForArticle(client, pathname, post, timeoutMs = 15000) {
+  const contentMarker = getBlogContentBySlug(post.slug).split('\n').find((line) => line && !line.startsWith('#'));
+  const deadline = Date.now() + timeoutMs;
+  let state = null;
+  while (Date.now() < deadline) {
+    try {
+      state = await getBrowserState(client);
+      if (state?.pathname === pathname && state.lang === post.language && state.h1 === post.title && state.body.includes(contentMarker)) break;
+    } catch {
+      // Navigation can briefly destroy the evaluation context.
+    }
+    await delay(100);
+  }
+  return state;
+}
+
 async function waitForPage(userDataDir, timeoutMs = 30000) {
   const deadline = Date.now() + timeoutMs;
   let lastError = 'browser target was not available';
@@ -272,7 +307,7 @@ function eventDetails(event) {
   return null;
 }
 
-async function runBrowserPage(browserPath, pathname, width, persistedLanguage) {
+async function runBrowserPage(browserPath, pathname, width, persistedLanguage, switchLanguage) {
   const userDataDir = mkdtempSync(join(tmpdir(), 'polysyntax-release-browser-'));
   const child = spawn(browserPath, [
     '--headless=new',
@@ -318,32 +353,37 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage) {
 
     const expectedPathname = persistedLanguage ? '/ja/blog/react-reconciliation' : pathname;
     const expectedPost = persistedLanguage ? posts.ja.find((post) => post.id === 'react-reconciliation') : posts.ko.find((post) => post.id === 'react-reconciliation');
-    const contentMarker = getBlogContentBySlug(expectedPost.slug).split('\n').find((line) => line && !line.startsWith('#'));
-    let state = null;
-    const deadline = Date.now() + 15000;
-    while (Date.now() < deadline) {
-      try {
-        const result = await client.command('Runtime.evaluate', {
-          returnByValue: true,
-          expression: `(() => {
-            const article = document.querySelector('article');
-            return {
-              pathname: window.location.pathname,
-              lang: document.documentElement.lang,
-              h1: document.querySelector('h1')?.textContent ?? '',
-              body: article?.textContent ?? '',
-              storage: localStorage.getItem('language-storage'),
-              viewport: window.innerWidth,
-              overflow: document.documentElement.scrollWidth > window.innerWidth,
-            };
-          })()`,
-        });
-        state = result.result?.value ?? null;
-        if (state?.pathname === expectedPathname && state.lang === expectedPost.language && state.h1 === expectedPost.title && state.body.includes(contentMarker)) break;
-      } catch {
-        // Navigation can briefly destroy the evaluation context.
-      }
+    const initialState = await waitForArticle(client, expectedPathname, expectedPost);
+    let state = initialState;
+    let switchMarkdownRequests = [];
+    if (switchLanguage) {
+      const switchEventOffset = client.events.length;
+      const trigger = await client.command('Runtime.evaluate', {
+        returnByValue: true,
+        expression: `(() => {
+          const button = [...document.querySelectorAll('button[aria-haspopup="menu"]')].find((candidate) => candidate.textContent?.trim() === 'KO');
+          button?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+          return Boolean(button);
+        })()`,
+      });
+      if (!trigger.result?.value) throw new Error('Korean language menu trigger was not found');
       await delay(100);
+      const selection = await client.command('Runtime.evaluate', {
+        returnByValue: true,
+        expression: `(() => {
+          const item = [...document.querySelectorAll('[role="menuitem"]')].find((candidate) => candidate.textContent?.trim() === '日本語');
+          item?.click();
+          return Boolean(item);
+        })()`,
+      });
+      if (!selection.result?.value) throw new Error('Japanese language menu item was not found');
+      const switchedPost = posts.ja.find((post) => post.id === 'react-reconciliation');
+      state = await waitForArticle(client, '/ja/blog/react-reconciliation', switchedPost);
+      switchMarkdownRequests = client.events
+        .slice(switchEventOffset)
+        .filter((event) => event.method === 'Network.requestWillBeSent')
+        .map((event) => new URL(event.params.request.url).pathname)
+        .filter((requestPath) => requestPath.startsWith('/blog/content/'));
     }
 
     const errors = client.events.map(eventDetails).filter(Boolean);
@@ -351,7 +391,7 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage) {
       .filter((event) => event.method === 'Network.requestWillBeSent')
       .map((event) => new URL(event.params.request.url).pathname)
       .filter((requestPath) => requestPath.startsWith('/blog/content/'));
-    return { state, errors, markdownRequests };
+    return { initialState, state, errors, markdownRequests, switchMarkdownRequests };
   } finally {
     client?.close();
     try {
@@ -369,16 +409,22 @@ const koreanBrowserResults = [];
 for (const width of [375, 1440]) {
   await check(`browser.${width}px`, async () => {
     requireCondition(browser, 'No supported headless Chromium binary is installed');
-    const result = await runBrowserPage(browser, '/ko/blog/react-reconciliation', width);
+    const result = await runBrowserPage(browser, '/ko/blog/react-reconciliation', width, undefined, width === 375 ? 'ja' : undefined);
     koreanBrowserResults.push(result);
     const post = posts.ko.find((candidate) => candidate.id === 'react-reconciliation');
-    requireCondition(result.state?.viewport === width, `browser ${width}px: viewport was not applied`);
-    requireCondition(result.state?.pathname === '/ko/blog/react-reconciliation', `browser ${width}px: unexpected URL`);
-    requireCondition(result.state?.lang === 'ko', `browser ${width}px: Korean document lang missing`);
-    requireCondition(result.state?.h1 === post.title, `browser ${width}px: localized H1 missing`);
+    requireCondition(result.initialState?.viewport === width, `browser ${width}px: viewport was not applied`);
+    requireCondition(result.initialState?.pathname === '/ko/blog/react-reconciliation', `browser ${width}px: unexpected URL`);
+    requireCondition(result.initialState?.lang === 'ko', `browser ${width}px: Korean document lang missing`);
+    requireCondition(result.initialState?.h1 === post.title, `browser ${width}px: localized H1 missing`);
     const contentMarker = getBlogContentBySlug(post.slug).split('\n').find((line) => line && !line.startsWith('#'));
-    requireCondition(result.state?.body.includes(contentMarker), `browser ${width}px: localized article body missing`);
-    requireCondition(!result.state?.overflow, `browser ${width}px: horizontal overflow detected`);
+    requireCondition(result.initialState?.body.includes(contentMarker), `browser ${width}px: localized article body missing`);
+    requireCondition(!result.initialState?.overflow, `browser ${width}px: horizontal overflow detected`);
+    if (width === 375) {
+      requireCondition(result.state?.pathname === '/ja/blog/react-reconciliation', 'KO to JA switch did not update the URL');
+      requireCondition(result.state?.lang === 'ja', 'KO to JA switch did not update document language');
+      requireCondition(result.switchMarkdownRequests.filter((requestPath) => requestPath.endsWith('-ja')).length === 1, 'KO to JA switch did not make exactly one JA Markdown request');
+      requireCondition(result.switchMarkdownRequests.filter((requestPath) => requestPath.endsWith('-ko')).length === 0, 'KO to JA switch made a stale KO Markdown request');
+    }
   });
 }
 
@@ -404,5 +450,6 @@ await check('browser.korean-hydration-console-errors', () => {
 
 const passed = results.filter((result) => result.status === 'pass').length;
 const skipped = results.filter((result) => result.status === 'skip').length;
-record('summary', failures ? 'fail' : 'pass', `${passed} passed, ${skipped} skipped, ${failures} failed`);
-process.exitCode = failures ? 1 : 0;
+const summaryStatus = failures || skipped ? 'fail' : 'pass';
+record('summary', summaryStatus, `${passed} passed, ${skipped} skipped, ${failures} failed${skipped ? '; skipped checks are required' : ''}`);
+process.exitCode = summaryStatus === 'fail' ? 1 : 0;

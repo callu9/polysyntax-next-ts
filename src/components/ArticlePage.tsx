@@ -109,7 +109,8 @@ export default function ArticlePage({ initialArticle, initialContent, locale }: 
   const pendingPosition = useRef<ReadingPosition | null>(null);
   const latestRequestId = useRef(0);
   const lastStartedRequest = useRef<string | null>(null);
-  const targetLanguage = requestedLanguage ?? activeLanguage;
+  const isInitialSnapshot = snapshot.article.slug === initialArticle.slug;
+  const targetLanguage = requestedLanguage ?? (isInitialSnapshot ? activeLanguage : snapshot.article.language);
   const targetArticle = useMemo(() => getBlogPost(snapshot.article.id, targetLanguage), [snapshot.article.id, targetLanguage]);
 
   useEffect(() => {
