@@ -5,6 +5,7 @@ import { getTranslations } from '@/content/translations';
 import { useTranslation } from '@/i18n/useTranslation';
 import {
   canCommitRequest,
+  getArticleHeadingScrollTarget,
   getArticleScrollRatio,
   getArticleScrollTarget,
   LANGUAGE_TIMEOUT_MS,
@@ -65,7 +66,14 @@ function restoreReadingPosition(article: HTMLElement, position: ReadingPosition)
     : article.querySelectorAll<HTMLElement>('h2, h3')[position.headingOrdinal];
 
   if (heading) {
-    window.scrollTo({ top: window.scrollY + heading.getBoundingClientRect().top });
+    window.scrollTo({
+      top: getArticleHeadingScrollTarget(
+        window.scrollY,
+        heading.getBoundingClientRect().top,
+        document.documentElement.scrollHeight,
+        window.innerHeight,
+      ),
+    });
     return;
   }
 
