@@ -8,18 +8,19 @@ import {
   getArticleScrollRatio,
   getArticleScrollTarget,
   LANGUAGE_TIMEOUT_MS,
+  type ReadingPosition,
 } from '@/lib/multilingualReading';
 import { useLanguageStore } from '@/store/languageStore';
 import Link from 'next/link';
-import { useParams, usePathname } from 'next/navigation';
-import { getLocaleFromPath, localePath, type Locale } from '@/lib/localeRoutes';
+import { useParams, usePathname, useRouter } from 'next/navigation';
+import { changeLocalePath, getLocaleFromPath, localePath, type Locale } from '@/lib/localeRoutes';
+import { formatArchiveDate } from '@/lib/dateFormatting';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 type ArticleSnapshot = { article: BlogPost; content: string };
-type ReadingPosition = { headingOrdinal: number | null; ratio: number };
 
 const markdownComponents: Components = {
   h1: () => null,
@@ -110,12 +111,12 @@ function restoreReadingPosition(article: HTMLElement, position: ReadingPosition)
 export default function BlogPostPage({ postId: providedPostId, forcedLanguage }: { postId?: string; forcedLanguage?: Locale } = {}) {
   const params = useParams<{ id?: string }>();
   const pathname = usePathname();
+  const router = useRouter();
   const routeLanguage = getLocaleFromPath(pathname);
   const postId = providedPostId ?? params?.id ?? 'react-reconciliation';
-  const { language, requestedLanguage, setLanguage } = useLanguageStore();
+  const { language, requestedLanguage, setLanguage, rememberReadingTransition, takeReadingTransition } = useLanguageStore();
   const activeLanguage = forcedLanguage ?? routeLanguage ?? language;
   const { t } = useTranslation(activeLanguage);
-  const targetLanguage = requestedLanguage ?? activeLanguage;
   const href = (path: string) => routeLanguage ? localePath(routeLanguage, path) : path;
   const [snapshot, setSnapshot] = useState<ArticleSnapshot | null>(null);
   const [failedTarget, setFailedTarget] = useState<BlogPost['language'] | null>(null);
@@ -123,6 +124,7 @@ export default function BlogPostPage({ postId: providedPostId, forcedLanguage }:
   const articleRef = useRef<HTMLElement>(null);
   const pendingPosition = useRef<ReadingPosition | null>(null);
   const latestRequestId = useRef(0);
+  const targetLanguage = requestedLanguage ?? snapshot?.article.language ?? activeLanguage;
   const targetArticle = useMemo(() => getBlogPost(postId, targetLanguage), [postId, targetLanguage]);
 
   useEffect(() => {
@@ -131,7 +133,10 @@ export default function BlogPostPage({ postId: providedPostId, forcedLanguage }:
     const requestId = ++latestRequestId.current;
     const startedAt = performance.now();
     const controller = new AbortController();
-    const position = articleRef.current ? captureReadingPosition(articleRef.current) : null;
+    const position = articleRef.current
+      ? captureReadingPosition(articleRef.current)
+      : pendingPosition.current ?? takeReadingTransition(postId, targetLanguage);
+    if (position) pendingPosition.current = position;
     const timeout = window.setTimeout(() => controller.abort(), LANGUAGE_TIMEOUT_MS);
 
     getBlogContent(targetArticle.slug, controller.signal)
@@ -154,23 +159,35 @@ export default function BlogPostPage({ postId: providedPostId, forcedLanguage }:
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [postId, retryCount, targetArticle, targetLanguage]);
+  }, [postId, retryCount, takeReadingTransition, targetArticle, targetLanguage]);
 
   useLayoutEffect(() => {
     if (!snapshot) return;
 
     setLanguage(snapshot.article.language);
 
+    const committedPath = routeLanguage !== snapshot.article.language
+      ? changeLocalePath(pathname, snapshot.article.language)
+      : null;
+    const commitRoute = () => {
+      if (committedPath) router.replace(`${committedPath}${window.location.search}`, { scroll: false });
+    };
+
     const position = pendingPosition.current;
     pendingPosition.current = null;
-    if (!articleRef.current || !position) return;
+    if (!articleRef.current || !position) {
+      commitRoute();
+      return;
+    }
 
     const frame = window.requestAnimationFrame(() => {
       if (articleRef.current) restoreReadingPosition(articleRef.current, position);
+      if (committedPath) rememberReadingTransition(postId, snapshot.article.language, position);
+      commitRoute();
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [setLanguage, snapshot]);
+  }, [pathname, postId, rememberReadingTransition, routeLanguage, router, setLanguage, snapshot]);
 
   const article = snapshot?.article;
   const content = snapshot?.content ?? '';
@@ -238,7 +255,7 @@ export default function BlogPostPage({ postId: providedPostId, forcedLanguage }:
             <div className="mb-6 flex flex-wrap gap-x-4 gap-y-2 font-mono text-xs font-medium tracking-[0.14em] text-muted-foreground">
               <span>{articleTranslations?.blog.sampleArchive}</span>
               <span>{article.language.toUpperCase()}</span>
-              <span>{new Date(article.date).toLocaleDateString(article.language === 'ko' ? 'ko-KR' : article.language === 'ja' ? 'ja-JP' : 'en-US')}</span>
+              <span>{formatArchiveDate(article.date, article.language === 'ko' ? 'ko-KR' : article.language === 'ja' ? 'ja-JP' : 'en-US')}</span>
               <span>{article.author}</span>
               <span>{article.readTime}{article.language === 'ja' ? '' : ' '}{articleTranslations?.blog.readTime}</span>
             </div>

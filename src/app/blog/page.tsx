@@ -8,6 +8,7 @@ import { getBlogFilterOptions, filterBlogPosts } from '@/lib/blogDiscovery';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useLanguageStore } from '@/store/languageStore';
 import { getLocaleFromPath, localePath, type Locale } from '@/lib/localeRoutes';
+import { formatArchiveDate } from '@/lib/dateFormatting';
 
 const PAGE_SIZE = 6;
 
@@ -143,7 +144,7 @@ function BlogArchive({ forcedLanguage }: { forcedLanguage?: Locale }) {
                 <article key={article.id} className="group grid gap-5 py-8 md:grid-cols-[10rem_1fr] md:gap-10">
                   <div className="font-mono text-xs font-medium tracking-[0.14em] text-muted-foreground">
                     <p>{t('blog.sampleArchive')}</p>
-                    <p>{new Date(article.date).toLocaleDateString(locale)}</p>
+                    <p>{formatArchiveDate(article.date, locale)}</p>
                     <p className="mt-2">{article.readTime}{activeLanguage === 'ja' ? '' : ' '}{t('blog.readTime')}</p>
                     <p className="mt-2">{article.category}</p>
                   </div>

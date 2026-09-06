@@ -7,6 +7,7 @@ import { useTranslation } from "@/i18n/useTranslation";
 import { useLanguageStore } from "@/store/languageStore";
 import { usePathname } from 'next/navigation';
 import { getLocaleFromPath, localePath, type Locale } from '@/lib/localeRoutes';
+import { formatArchiveDate } from '@/lib/dateFormatting';
 
 export default function Home({ forcedLanguage }: { forcedLanguage?: Locale } = {}) {
   const { t } = useTranslation(forcedLanguage);
@@ -37,7 +38,7 @@ export default function Home({ forcedLanguage }: { forcedLanguage?: Locale } = {
             <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t("home.latestArticles")}</h2>
             <span className="text-xs text-muted-foreground">{editorial.total} {t('home.articleCount')}</span>
           </div>
-          <Link href="/blog" className="inline-flex min-h-11 items-center text-sm font-medium text-primary transition-opacity hover:opacity-80">{t('home.viewAll')} →</Link>
+          <Link href={href('/blog')} className="inline-flex min-h-11 items-center text-sm font-medium text-primary transition-opacity hover:opacity-80">{t('home.viewAll')} →</Link>
         </div>
 
         {!featuredArticle ? (
@@ -47,7 +48,7 @@ export default function Home({ forcedLanguage }: { forcedLanguage?: Locale } = {
           <Link href={href(`/blog/${featuredArticle.id}`)} className="group block border border-border bg-card p-6 transition-colors hover:bg-secondary sm:p-8">
             <div className="mb-12 flex flex-wrap gap-x-4 gap-y-2 font-mono text-xs font-medium tracking-[0.14em] text-muted-foreground">
               <span>{t('blog.sampleArchive')}</span>
-              <span>{new Date(featuredArticle.date).toLocaleDateString(activeLanguage === "ko" ? "ko-KR" : activeLanguage === "ja" ? "ja-JP" : "en-US")}</span>
+              <span>{formatArchiveDate(featuredArticle.date, activeLanguage === "ko" ? "ko-KR" : activeLanguage === "ja" ? "ja-JP" : "en-US")}</span>
               <span>{featuredArticle.readTime}{activeLanguage === 'ja' ? '' : ' '}{t("blog.readTime")}</span>
               <span>{activeLanguage.toUpperCase()}</span>
             </div>
@@ -65,7 +66,7 @@ export default function Home({ forcedLanguage }: { forcedLanguage?: Locale } = {
                   <Link key={article.id} href={href(`/blog/${article.id}`)} className="group border border-border bg-card p-5 transition-colors hover:bg-secondary">
                     <div className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-xs text-muted-foreground">
                       <span>{t('blog.sampleArchive')}</span>
-                      <span>{new Date(article.date).toLocaleDateString(activeLanguage === "ko" ? "ko-KR" : activeLanguage === "ja" ? "ja-JP" : "en-US")}</span>
+                      <span>{formatArchiveDate(article.date, activeLanguage === "ko" ? "ko-KR" : activeLanguage === "ja" ? "ja-JP" : "en-US")}</span>
                     </div>
                     <h3 className="mt-8 text-xl font-semibold tracking-tight group-hover:text-primary">{article.title}</h3>
                     <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">{article.excerpt}</p>

@@ -1,6 +1,7 @@
 export const SUPPORTED_LANGUAGES = ['en', 'ko', 'ja'] as const;
 
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
+export type ReadingPosition = { headingOrdinal: number | null; ratio: number };
 
 export const LANGUAGE_TIMEOUT_MS = 5000;
 
