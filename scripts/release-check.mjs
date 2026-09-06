@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
-import net from 'node:net';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -63,6 +62,16 @@ function assertPageHtml(pathname, body, locale, canonicalPath) {
   requireCondition(!body.includes('TechPulse'), `${pathname}: stale TechPulse brand in server HTML`);
 }
 
+function assertSingleArticleStructuredData(pathname, body) {
+  const scripts = [...body.matchAll(/<script\b(?=[^>]*\btype=["']application\/ld\+json["'])[^>]*>([\s\S]*?)<\/script>/gi)]
+    .map((match) => JSON.parse(match[1]));
+  requireCondition(scripts.length === 1, `${pathname}: expected one Article/Breadcrumb JSON-LD script, found ${scripts.length}`);
+  requireCondition(
+    scripts[0]?.['@graph']?.some((entry) => entry['@type'] === 'Article') && scripts[0]?.['@graph']?.some((entry) => entry['@type'] === 'BreadcrumbList'),
+    `${pathname}: expected one Article/Breadcrumb JSON-LD graph`,
+  );
+}
+
 await check('canonical-routes-45', async () => {
   const paths = getIndexablePaths(posts.en.map((post) => post.id));
   requireCondition(paths.length === 45, `expected 45 canonical routes, found ${paths.length}`);
@@ -101,6 +110,7 @@ await check('legacy-routes-15', async () => {
   for (const { pathname, response, body } of responses) {
     requireCondition(response.status === 200, `${pathname}: expected 200, got ${response.status}`);
     assertPageHtml(pathname, body, 'en', localePath('en', pathname));
+    if (pathname === '/blog/react-reconciliation') assertSingleArticleStructuredData(pathname, body);
   }
 });
 
@@ -184,31 +194,23 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function getFreePort() {
-  const server = net.createServer();
-  await new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', resolve);
-  });
-  const { port } = server.address();
-  await new Promise((resolve) => server.close(resolve));
-  return port;
-}
-
 async function getJson(url, timeoutMs = 1000) {
   const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
   if (!response.ok) throw new Error(`${url} returned ${response.status}`);
   return response.json();
 }
 
-async function waitForPage(port, timeoutMs = 10000) {
+async function waitForPage(userDataDir, timeoutMs = 30000) {
   const deadline = Date.now() + timeoutMs;
   let lastError = 'browser target was not available';
   while (Date.now() < deadline) {
     try {
-      const targets = await getJson(`http://127.0.0.1:${port}/json/list`);
-      const page = targets.find((target) => target.type === 'page');
-      if (page?.webSocketDebuggerUrl) return page;
+      const [port] = readFileSync(join(userDataDir, 'DevToolsActivePort'), 'utf8').trim().split('\n');
+      if (port) {
+        const targets = await getJson(`http://127.0.0.1:${port}/json/list`);
+        const page = targets.find((target) => target.type === 'page');
+        if (page?.webSocketDebuggerUrl) return page;
+      }
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
     }
@@ -271,7 +273,6 @@ function eventDetails(event) {
 }
 
 async function runBrowserPage(browserPath, pathname, width, persistedLanguage) {
-  const port = await getFreePort();
   const userDataDir = mkdtempSync(join(tmpdir(), 'polysyntax-release-browser-'));
   const child = spawn(browserPath, [
     '--headless=new',
@@ -282,15 +283,16 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage) {
     '--disable-extensions',
     '--no-first-run',
     '--no-default-browser-check',
-    `--remote-debugging-port=${port}`,
+    '--remote-debugging-address=127.0.0.1',
+    '--remote-debugging-port=0',
     `--user-data-dir=${userDataDir}`,
     `--window-size=${width},900`,
     'about:blank',
-  ], { detached: true, stdio: ['ignore', 'ignore', 'pipe'] });
+  ], { detached: true, stdio: ['ignore', 'ignore', 'ignore'] });
 
   let client;
   try {
-    const target = await waitForPage(port);
+    const target = await waitForPage(userDataDir);
     client = new DevToolsClient(target.webSocketDebuggerUrl);
     await client.connect();
     await client.command('Runtime.enable');
