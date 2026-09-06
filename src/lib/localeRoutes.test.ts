@@ -7,6 +7,7 @@ import {
   getLocaleFromPath,
   isLocale,
   localePath,
+  profileRedirectPath,
   resolveLanguageSwitch,
   stripLocale,
 } from './localeRoutes.ts';
@@ -43,4 +44,11 @@ test('indexable paths contain only locale canonical URLs', () => {
     '/ko', '/ko/about', '/ko/blog', '/ko/blog/first', '/ko/blog/second',
     '/ja', '/ja/about', '/ja/blog', '/ja/blog/first', '/ja/blog/second',
   ]);
+});
+
+test('profile always redirects to the existing localized About destination', () => {
+  assert.equal(profileRedirectPath(), '/about');
+  assert.equal(profileRedirectPath('en'), '/en/about');
+  assert.equal(profileRedirectPath('ko'), '/ko/about');
+  assert.equal(profileRedirectPath('ja'), '/ja/about');
 });
