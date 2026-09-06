@@ -7,6 +7,8 @@ import {
   getLocaleFromPath,
   isLocale,
   localePath,
+  profileRedirectPath,
+  resolveArticleLanguage,
   resolveLanguageSwitch,
   stripLocale,
 } from './localeRoutes.ts';
@@ -27,6 +29,11 @@ test('document locale follows the URL and defaults legacy routes to English', ()
   assert.equal(getDocumentLocale('/blog/article'), 'en');
 });
 
+test('legacy article routes retain an existing language while localized routes follow the URL', () => {
+  assert.equal(resolveArticleLanguage('/blog/react-reconciliation', 'ja'), 'ja');
+  assert.equal(resolveArticleLanguage('/ko/blog/react-reconciliation', 'ja'), 'ko');
+});
+
 test('article language switches load content before changing locale URLs', () => {
   assert.deepEqual(resolveLanguageSwitch('/ko/blog/react-reconciliation', 'ja', '?ref=home'), { type: 'load-article' });
   assert.deepEqual(resolveLanguageSwitch('/ko/blog', 'ja', '?page=2'), { type: 'navigate', href: '/ja/blog?page=2' });
@@ -43,4 +50,11 @@ test('indexable paths contain only locale canonical URLs', () => {
     '/ko', '/ko/about', '/ko/blog', '/ko/blog/first', '/ko/blog/second',
     '/ja', '/ja/about', '/ja/blog', '/ja/blog/first', '/ja/blog/second',
   ]);
+});
+
+test('profile always redirects to the existing localized About destination', () => {
+  assert.equal(profileRedirectPath(), '/about');
+  assert.equal(profileRedirectPath('en'), '/en/about');
+  assert.equal(profileRedirectPath('ko'), '/ko/about');
+  assert.equal(profileRedirectPath('ja'), '/ja/about');
 });

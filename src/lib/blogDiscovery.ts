@@ -15,12 +15,23 @@ export interface BlogFilterResult {
   totalPages: number;
 }
 
+function comparePosts(a: BlogPost, b: BlogPost): number {
+  return b.date.localeCompare(a.date)
+    || new Intl.Collator(a.language, { sensitivity: 'base' }).compare(a.title, b.title)
+    || a.id.localeCompare(b.id);
+}
+
+function compareOptions(a: { id: string; label: string }, b: { id: string; label: string }, language: BlogPost['language']): number {
+  return new Intl.Collator(language, { sensitivity: 'base' }).compare(a.label, b.label)
+    || a.id.localeCompare(b.id);
+}
+
 export function getHomeEditorial(posts: BlogPost[]): {
   featured: BlogPost | null;
   latest: BlogPost[];
   total: number;
 } {
-  const uniquePosts = [...new Map(posts.map((post) => [post.id, post])).values()];
+  const uniquePosts = [...new Map(posts.map((post) => [post.id, post])).values()].sort(comparePosts);
   return { featured: uniquePosts[0] ?? null, latest: uniquePosts.slice(1, 5), total: uniquePosts.length };
 }
 
@@ -36,7 +47,7 @@ export function filterBlogPosts(posts: BlogPost[], filters: BlogFilterInput): Bl
     return (!query || searchableText.includes(query))
       && (!category || post.categoryId.toLocaleLowerCase() === category)
       && (!tag || post.tagIds.some((postTag) => postTag.toLocaleLowerCase() === tag));
-  });
+  }).sort(comparePosts);
   const totalPages = Math.max(1, Math.ceil(matchingPosts.length / pageSize));
   const page = Math.min(Math.max(1, Math.floor(filters.page) || 1), totalPages);
 
@@ -52,10 +63,11 @@ export function getBlogFilterOptions(posts: BlogPost[]): {
   categories: Array<{ id: string; label: string }>;
   tags: Array<{ id: string; label: string }>;
 } {
+  const language = posts[0]?.language ?? 'en';
   return {
     categories: [...new Map(posts.map((post) => [post.categoryId, { id: post.categoryId, label: post.category }])).values()]
-      .sort((a, b) => a.label.localeCompare(b.label)),
+      .sort((a, b) => compareOptions(a, b, language)),
     tags: [...new Map(posts.flatMap((post) => post.tagIds.map((id, index) => [id, { id, label: post.tags[index] }] as const))).values()]
-      .sort((a, b) => a.label.localeCompare(b.label)),
+      .sort((a, b) => compareOptions(a, b, language)),
   };
 }

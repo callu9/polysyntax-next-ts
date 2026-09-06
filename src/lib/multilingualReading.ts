@@ -55,3 +55,15 @@ export function getArticleScrollTarget(
   const target = articleTop + Math.min(1, Math.max(0, ratio)) * Math.max(0, articleHeight - viewportHeight);
   return Math.min(Math.max(0, target), Math.max(0, documentHeight - viewportHeight));
 }
+
+export function getArticleHeadingScrollTarget(
+  scrollY: number,
+  headingTop: number,
+  documentHeight: number,
+  viewportHeight: number,
+): number {
+  return Math.min(
+    Math.max(0, scrollY + headingTop),
+    Math.max(0, documentHeight - viewportHeight),
+  );
+}

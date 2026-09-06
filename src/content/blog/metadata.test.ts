@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-// @ts-expect-error Node's type-stripping runner requires the .ts extension.
 import { getAllBlogPosts, getArticleNeighbors, getBlogContent, getRelatedBlogPosts } from './metadata.ts';
 import { getBlogContentBySlug } from './content.ts';
 
@@ -49,7 +48,7 @@ test('registered content still crosses the abortable fetch boundary', async () =
   let requestedSignal: AbortSignal | undefined;
   globalThis.fetch = async (input, init) => {
     requestedUrl = String(input);
-    requestedSignal = init?.signal;
+    requestedSignal = init?.signal ?? undefined;
     return new Response('loaded through fetch');
   };
 

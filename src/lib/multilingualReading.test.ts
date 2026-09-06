@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-// @ts-expect-error Node's type-stripping runner requires the .ts extension.
 import {
   canCommitRequest,
+  getArticleHeadingScrollTarget,
   getArticleScrollRatio,
   getArticleScrollTarget,
   readPersistedLanguage,
@@ -40,4 +40,9 @@ test('article-local scroll math clamps both ratio and document target', () => {
   assert.equal(getArticleScrollRatio(0, 200, 1400, 800), 0);
   assert.equal(getArticleScrollTarget(0.5, 300, 1800, 800, 2200), 800);
   assert.equal(getArticleScrollTarget(1, 1800, 1800, 800, 2400), 1600);
+});
+
+test('heading restoration converts a viewport offset into a document target', () => {
+  assert.equal(getArticleHeadingScrollTarget(800, -32, 2600, 800), 768);
+  assert.equal(getArticleHeadingScrollTarget(20, -80, 2600, 800), 0);
 });

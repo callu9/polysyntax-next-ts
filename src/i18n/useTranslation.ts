@@ -2,9 +2,9 @@ import { useLanguageStore } from '@/store/languageStore';
 import { getTranslations } from '@/content/translations';
 import type { Language } from '@/store/languageStore';
 
-export const useTranslation = (forcedLanguage?: Language) => {
+export const useTranslation = (preferredLanguage?: Language) => {
   const storedLanguage = useLanguageStore((state) => state.language);
-  const language = forcedLanguage ?? storedLanguage;
+  const language = preferredLanguage ?? storedLanguage;
   const translations = getTranslations(language);
 
   const t = (key: string): string => {
