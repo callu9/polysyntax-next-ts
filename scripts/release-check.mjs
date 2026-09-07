@@ -362,7 +362,7 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, s
         returnByValue: true,
         expression: `(() => {
           const button = [...document.querySelectorAll('button[aria-haspopup="menu"]')].find((candidate) => candidate.textContent?.trim() === 'KO');
-          button?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+          button?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }));
           return Boolean(button);
         })()`,
       });
