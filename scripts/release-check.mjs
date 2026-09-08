@@ -298,7 +298,7 @@ async function selectLanguage(client, triggerLabel, itemLabel) {
   );
 }
 
-async function waitForPage(userDataDir, timeoutMs = 30000) {
+async function waitForPage(userDataDir, child, timeoutMs = 30000) {
   const deadline = Date.now() + timeoutMs;
   let lastError = 'browser target was not available';
   while (Date.now() < deadline) {
@@ -312,9 +312,10 @@ async function waitForPage(userDataDir, timeoutMs = 30000) {
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
     }
+    if (child.exitCode !== null) throw new Error(`Browser startup failed: process exited with code ${child.exitCode}`);
     await delay(100);
   }
-  throw new Error(lastError);
+  throw new Error(`Browser startup failed after ${timeoutMs}ms: ${lastError}`);
 }
 
 class DevToolsClient {
@@ -370,7 +371,7 @@ function eventDetails(event) {
   return null;
 }
 
-async function runBrowserPage(browserPath, pathname, width, persistedLanguage, positionMode) {
+async function runBrowserPageOnce(browserPath, pathname, width, persistedLanguage, positionMode) {
   const userDataDir = mkdtempSync(join(tmpdir(), 'polysyntax-release-browser-'));
   const child = spawn(browserPath, [
     '--headless=new',
@@ -386,11 +387,16 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, p
     `--user-data-dir=${userDataDir}`,
     `--window-size=${width},900`,
     'about:blank',
-  ], { detached: true, stdio: ['ignore', 'ignore', 'ignore'] });
+  ], { detached: true, stdio: ['ignore', 'ignore', 'pipe'] });
+  let browserStderr = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk) => {
+    browserStderr = `${browserStderr}${chunk}`.slice(-2000);
+  });
 
   let client;
   try {
-    const target = await waitForPage(userDataDir);
+    const target = await waitForPage(userDataDir, child);
     client = new DevToolsClient(target.webSocketDebuggerUrl);
     await client.connect();
     await client.command('Runtime.enable');
@@ -508,6 +514,11 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, p
       .map((event) => new URL(event.params.request.url).pathname)
       .filter((requestPath) => requestPath.startsWith('/blog/content/'));
     return { initialState, state, errors, markdownRequests, switchMarkdownRequests, positionRatio };
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Browser startup failed')) {
+      throw new Error(`${error.message}${browserStderr.trim() ? `; stderr: ${browserStderr.trim()}` : ''}`);
+    }
+    throw error;
   } finally {
     client?.close();
     try {
@@ -517,6 +528,16 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, p
     }
     await delay(100);
     rmSync(userDataDir, { recursive: true, force: true });
+  }
+}
+
+async function runBrowserPage(browserPath, pathname, width, persistedLanguage, positionMode) {
+  try {
+    return await runBrowserPageOnce(browserPath, pathname, width, persistedLanguage, positionMode);
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.startsWith('Browser startup failed')) throw error;
+    // ponytail: one startup retry; use a browser driver if raw CDP startup remains flaky.
+    return runBrowserPageOnce(browserPath, pathname, width, persistedLanguage, positionMode);
   }
 }
 
