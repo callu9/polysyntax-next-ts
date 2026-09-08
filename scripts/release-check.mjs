@@ -245,6 +245,38 @@ async function waitForArticle(client, pathname, post, timeoutMs = 15000) {
   return state;
 }
 
+async function waitForEvent(client, method, offset, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const event = client.events.slice(offset).find((candidate) => candidate.method === method);
+    if (event) return event;
+    await delay(50);
+  }
+  throw new Error(`Timed out waiting for ${method}`);
+}
+
+async function selectLanguage(client, triggerLabel, itemLabel) {
+  const trigger = await client.command('Runtime.evaluate', {
+    returnByValue: true,
+    expression: `(() => {
+      const button = [...document.querySelectorAll('button[aria-haspopup="menu"]')].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(triggerLabel)});
+      button?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }));
+      return Boolean(button);
+    })()`,
+  });
+  if (!trigger.result?.value) throw new Error(`${triggerLabel} language menu trigger was not found`);
+  await delay(100);
+  const selection = await client.command('Runtime.evaluate', {
+    returnByValue: true,
+    expression: `(() => {
+      const item = [...document.querySelectorAll('[role="menuitem"]')].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(itemLabel)});
+      item?.click();
+      return Boolean(item);
+    })()`,
+  });
+  if (!selection.result?.value) throw new Error(`${itemLabel} language menu item was not found`);
+}
+
 async function waitForPage(userDataDir, timeoutMs = 30000) {
   const deadline = Date.now() + timeoutMs;
   let lastError = 'browser target was not available';
@@ -367,7 +399,28 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, p
     let state = initialState;
     let switchMarkdownRequests = [];
     let positionRatio = null;
-    if (positionMode) {
+    if (positionMode === 'cancel-reselect') {
+      await client.command('Fetch.enable', { patterns: [{ urlPattern: '*://*/blog/content/*-ja' }] });
+      const switchEventOffset = client.events.length;
+      await selectLanguage(client, 'KO', '日本語');
+      const pausedRequest = await waitForEvent(client, 'Fetch.requestPaused', switchEventOffset);
+      await selectLanguage(client, 'JA', '한국어');
+      try {
+        await client.command('Fetch.failRequest', { requestId: pausedRequest.params.requestId, errorReason: 'Aborted' });
+      } catch {
+        // The AbortController may have already canceled the paused request.
+      }
+      await client.command('Fetch.disable');
+      await delay(100);
+      await selectLanguage(client, 'KO', '日本語');
+      const switchedPost = posts.ja.find((post) => post.id === 'react-reconciliation');
+      state = await waitForArticle(client, '/ja/blog/react-reconciliation', switchedPost);
+      switchMarkdownRequests = client.events
+        .slice(switchEventOffset)
+        .filter((event) => event.method === 'Network.requestWillBeSent')
+        .map((event) => new URL(event.params.request.url).pathname)
+        .filter((requestPath) => requestPath.startsWith('/blog/content/'));
+    } else if (positionMode) {
       const positionResult = await client.command('Runtime.evaluate', {
         expression: `(() => {
           const article = document.querySelector('article');
@@ -491,6 +544,18 @@ await check('browser.ratio-fallback', async () => {
   const restoredScroll = result.state?.scrollCalls?.at(-1)?.[0]?.top;
   requireCondition(Math.abs((restoredScroll ?? Number.POSITIVE_INFINITY) - expectedScroll) <= 1, `ratio fallback restore call was wrong: expected ${expectedScroll}, got ${restoredScroll}`);
   requireCondition(Math.abs((result.state?.scrollY ?? Number.POSITIVE_INFINITY) - expectedScroll) <= 5, `ratio fallback was not stable after remount: expected ${expectedScroll}, got ${result.state?.scrollY}`);
+});
+
+await check('browser.cancel-reselect', async () => {
+  requireCondition(browser, 'No supported headless Chromium binary is installed');
+  const result = await runBrowserPage(browser, '/ko/blog/react-reconciliation', 375, undefined, 'cancel-reselect');
+  const post = posts.ja.find((candidate) => candidate.id === 'react-reconciliation');
+  const contentMarker = getBlogContentBySlug(post.slug).split('\n').find((line) => line && !line.startsWith('#'));
+  requireCondition(result.state?.pathname === '/ja/blog/react-reconciliation', 'canceling and reselecting JA did not update the URL');
+  requireCondition(result.state?.lang === 'ja', 'canceling and reselecting JA did not update document language');
+  requireCondition(result.state?.h1 === post.title, 'canceling and reselecting JA did not render the localized H1');
+  requireCondition(result.state?.body.includes(contentMarker), 'canceling and reselecting JA did not render the localized body');
+  requireCondition(result.switchMarkdownRequests.filter((requestPath) => requestPath.endsWith('-ja')).length === 2, 'canceling and reselecting JA did not make two JA Markdown requests');
 });
 
 await check('browser.legacy-persisted-ja', async () => {
