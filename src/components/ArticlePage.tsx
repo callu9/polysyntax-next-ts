@@ -126,10 +126,12 @@ export default function ArticlePage({ initialArticle, initialContent, locale }: 
       ? captureReadingPosition(articleRef.current)
       : pendingPosition.current ?? takeReadingTransition(snapshot.article.id, targetLanguage);
     if (position) pendingPosition.current = position;
+    let cancelled = false;
     const timeout = window.setTimeout(() => controller.abort(), LANGUAGE_TIMEOUT_MS);
 
     getBlogContent(targetArticle.slug, controller.signal)
       .then((content) => {
+        if (cancelled) return;
         if (!canCommitRequest(requestId, latestRequestId.current, startedAt, performance.now())) {
           if (requestId === latestRequestId.current) setFailedTarget(targetLanguage);
           return;
@@ -140,11 +142,13 @@ export default function ArticlePage({ initialArticle, initialContent, locale }: 
         setFailedTarget(null);
       })
       .catch(() => {
-        if (requestId === latestRequestId.current) setFailedTarget(targetLanguage);
+        if (!cancelled && requestId === latestRequestId.current) setFailedTarget(targetLanguage);
       })
       .finally(() => window.clearTimeout(timeout));
 
     return () => {
+      cancelled = true;
+      if (lastStartedRequest.current === requestKey) lastStartedRequest.current = null;
       window.clearTimeout(timeout);
       controller.abort();
     };
@@ -157,6 +161,7 @@ export default function ArticlePage({ initialArticle, initialContent, locale }: 
     if (isInitialSnapshot && snapshot.article.language !== activeLanguage) return;
 
     setLanguage(snapshot.article.language);
+    document.documentElement.lang = snapshot.article.language;
 
     const committedPath = routeLanguage !== snapshot.article.language
       ? changeLocalePath(pathname, snapshot.article.language)
@@ -165,21 +170,34 @@ export default function ArticlePage({ initialArticle, initialContent, locale }: 
       if (committedPath) router.replace(`${committedPath}${window.location.search}`, { scroll: false });
     };
 
-    const position = pendingPosition.current;
-    pendingPosition.current = null;
+    const position = pendingPosition.current ?? takeReadingTransition(snapshot.article.id, snapshot.article.language);
     if (!articleRef.current || !position) {
+      pendingPosition.current = null;
       commitRoute();
       return;
     }
+    pendingPosition.current = position;
 
+    let cancelled = false;
     const frame = window.requestAnimationFrame(() => {
-      if (articleRef.current) restoreReadingPosition(articleRef.current, position);
-      if (committedPath) rememberReadingTransition(snapshot.article.id, snapshot.article.language, position);
-      commitRoute();
+      if (committedPath) {
+        rememberReadingTransition(snapshot.article.id, snapshot.article.language, position);
+        commitRoute();
+        return;
+      }
+
+      void document.fonts.ready.then(() => {
+        if (cancelled) return;
+        pendingPosition.current = null;
+        if (articleRef.current) restoreReadingPosition(articleRef.current, position);
+      });
     });
 
-    return () => window.cancelAnimationFrame(frame);
-  }, [activeLanguage, initialArticle.slug, languageStoreHydrated, pathname, rememberReadingTransition, routeLanguage, router, setLanguage, snapshot]);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+    };
+  }, [activeLanguage, initialArticle.slug, languageStoreHydrated, pathname, rememberReadingTransition, routeLanguage, router, setLanguage, snapshot, takeReadingTransition]);
 
   const article = snapshot.article;
   const articleTranslations = getTranslations(article.language);
