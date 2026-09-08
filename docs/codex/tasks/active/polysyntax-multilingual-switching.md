@@ -12,7 +12,7 @@
 | Check | Result |
 | --- | --- |
 | Seed QA | PASS — 0.94 |
-| Node policy test | PASS — 5/5 (`node --test --experimental-strip-types src/lib/multilingualReading.test.ts`) |
+| Node policy test | PASS — 6/6 (`node --test --experimental-strip-types src/lib/multilingualReading.test.ts`) |
 | Scoped ESLint | PASS — modified implementation files, exit 0 |
 | `npm run build` | PASS — Next.js static build, exit 0 |
 | Browser: brand | PASS — home shows PolySyntax and the exact hero tagline |
