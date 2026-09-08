@@ -236,13 +236,17 @@ async function waitForArticle(client, pathname, post, timeoutMs = 15000) {
   while (Date.now() < deadline) {
     try {
       state = await getBrowserState(client);
-      if (state?.pathname === pathname && state.lang === post.language && state.h1 === post.title && state.body.includes(contentMarker)) break;
+      if (state?.pathname === pathname && state.lang === post.language && state.h1 === post.title && state.body.includes(contentMarker)) return state;
     } catch {
       // Navigation can briefly destroy the evaluation context.
     }
     await delay(100);
   }
-  return state;
+  throw new Error(`Timed out waiting for ${pathname} (${post.language}); last state: ${JSON.stringify({
+    pathname: state?.pathname,
+    lang: state?.lang,
+    h1: state?.h1,
+  })}`);
 }
 
 async function waitForEvent(client, method, offset, timeoutMs = 5000) {
@@ -255,29 +259,46 @@ async function waitForEvent(client, method, offset, timeoutMs = 5000) {
   throw new Error(`Timed out waiting for ${method}`);
 }
 
+async function waitForRuntimeValue(client, expression, description, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError = null;
+  while (Date.now() < deadline) {
+    try {
+      const result = await client.command('Runtime.evaluate', { expression, returnByValue: true });
+      if (result.result?.value) return result.result.value;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await delay(50);
+  }
+  throw new Error(`Timed out waiting for ${description}${lastError ? `: ${lastError}` : ''}`);
+}
+
 async function selectLanguage(client, triggerLabel, itemLabel) {
-  const trigger = await client.command('Runtime.evaluate', {
-    returnByValue: true,
-    expression: `(() => {
+  await waitForRuntimeValue(
+    client,
+    `(() => {
       const button = [...document.querySelectorAll('button[aria-haspopup="menu"]')].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(triggerLabel)});
-      button?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }));
-      return Boolean(button);
+      if (!button) return false;
+      if (button.getAttribute('aria-expanded') !== 'true') {
+        button.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }));
+      }
+      return button.getAttribute('aria-expanded') === 'true';
     })()`,
-  });
-  if (!trigger.result?.value) throw new Error(`${triggerLabel} language menu trigger was not found`);
-  await delay(100);
-  const selection = await client.command('Runtime.evaluate', {
-    returnByValue: true,
-    expression: `(() => {
+    `${triggerLabel} language menu to open`,
+  );
+  await waitForRuntimeValue(
+    client,
+    `(() => {
       const item = [...document.querySelectorAll('[role="menuitem"]')].find((candidate) => candidate.textContent?.trim() === ${JSON.stringify(itemLabel)});
       item?.click();
       return Boolean(item);
     })()`,
-  });
-  if (!selection.result?.value) throw new Error(`${itemLabel} language menu item was not found`);
+    `${itemLabel} language menu item`,
+  );
 }
 
-async function waitForPage(userDataDir, timeoutMs = 30000) {
+async function waitForPage(userDataDir, child, timeoutMs = 30000) {
   const deadline = Date.now() + timeoutMs;
   let lastError = 'browser target was not available';
   while (Date.now() < deadline) {
@@ -291,9 +312,10 @@ async function waitForPage(userDataDir, timeoutMs = 30000) {
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
     }
+    if (child.exitCode !== null) throw new Error(`Browser startup failed: process exited with code ${child.exitCode}`);
     await delay(100);
   }
-  throw new Error(lastError);
+  throw new Error(`Browser startup failed after ${timeoutMs}ms: ${lastError}`);
 }
 
 class DevToolsClient {
@@ -349,7 +371,7 @@ function eventDetails(event) {
   return null;
 }
 
-async function runBrowserPage(browserPath, pathname, width, persistedLanguage, positionMode) {
+async function runBrowserPageOnce(browserPath, pathname, width, persistedLanguage, positionMode) {
   const userDataDir = mkdtempSync(join(tmpdir(), 'polysyntax-release-browser-'));
   const child = spawn(browserPath, [
     '--headless=new',
@@ -365,11 +387,16 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, p
     `--user-data-dir=${userDataDir}`,
     `--window-size=${width},900`,
     'about:blank',
-  ], { detached: true, stdio: ['ignore', 'ignore', 'ignore'] });
+  ], { detached: true, stdio: ['ignore', 'ignore', 'pipe'] });
+  let browserStderr = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk) => {
+    browserStderr = `${browserStderr}${chunk}`.slice(-2000);
+  });
 
   let client;
   try {
-    const target = await waitForPage(userDataDir);
+    const target = await waitForPage(userDataDir, child);
     client = new DevToolsClient(target.webSocketDebuggerUrl);
     await client.connect();
     await client.command('Runtime.enable');
@@ -385,8 +412,9 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, p
       screenHeight: 900,
     });
 
+    const rootNavigationOffset = client.events.length;
     await client.command('Page.navigate', { url: urlFor('/') });
-    await delay(300);
+    await waitForEvent(client, 'Page.loadEventFired', rootNavigationOffset);
     const storage = persistedLanguage
       ? `localStorage.setItem('language-storage', ${JSON.stringify(JSON.stringify({ state: { language: persistedLanguage }, version: 0 }))})`
       : "localStorage.removeItem('language-storage')";
@@ -411,7 +439,6 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, p
         // The AbortController may have already canceled the paused request.
       }
       await client.command('Fetch.disable');
-      await delay(100);
       await selectLanguage(client, 'KO', '日本語');
       const switchedPost = posts.ja.find((post) => post.id === 'react-reconciliation');
       state = await waitForArticle(client, '/ja/blog/react-reconciliation', switchedPost);
@@ -429,6 +456,25 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, p
           const scrollTo = window.scrollTo.bind(window);
           window.scrollTo = (...args) => { window.__polySyntaxScrollCalls.push(args); return scrollTo(...args); };
           if (${JSON.stringify(positionMode)} === 'heading') {
+            const querySelectorAll = Document.prototype.querySelectorAll;
+            const dispatchEvent = Element.prototype.dispatchEvent;
+            let menuItemsVisibleAt = Number.POSITIVE_INFINITY;
+            let ignoreNextTrigger = true;
+            Element.prototype.dispatchEvent = function (event) {
+              if (event.type === 'pointerdown' && this.matches?.('button[aria-haspopup="menu"]')) {
+                menuItemsVisibleAt = Math.min(menuItemsVisibleAt, performance.now() + 250);
+                if (ignoreNextTrigger) {
+                  ignoreNextTrigger = false;
+                  return true;
+                }
+              }
+              return dispatchEvent.call(this, event);
+            };
+            Document.prototype.querySelectorAll = function (selectors) {
+              return selectors === '[role="menuitem"]' && performance.now() < menuItemsVisibleAt
+                ? []
+                : querySelectorAll.call(this, selectors);
+            };
             const heading = article.querySelectorAll('h2, h3')[2];
             if (heading) window.scrollTo({ top: window.scrollY + heading.getBoundingClientRect().top });
             return;
@@ -445,27 +491,8 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, p
         returnByValue: true,
       });
       positionRatio = positionResult.result?.value?.ratio ?? null;
-      await delay(50);
       const switchEventOffset = client.events.length;
-      const trigger = await client.command('Runtime.evaluate', {
-        returnByValue: true,
-        expression: `(() => {
-          const button = [...document.querySelectorAll('button[aria-haspopup="menu"]')].find((candidate) => candidate.textContent?.trim() === 'KO');
-          button?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }));
-          return Boolean(button);
-        })()`,
-      });
-      if (!trigger.result?.value) throw new Error('Korean language menu trigger was not found');
-      await delay(100);
-      const selection = await client.command('Runtime.evaluate', {
-        returnByValue: true,
-        expression: `(() => {
-          const item = [...document.querySelectorAll('[role="menuitem"]')].find((candidate) => candidate.textContent?.trim() === '日本語');
-          item?.click();
-          return Boolean(item);
-        })()`,
-      });
-      if (!selection.result?.value) throw new Error('Japanese language menu item was not found');
+      await selectLanguage(client, 'KO', '日本語');
       const switchedPost = posts.ja.find((post) => post.id === 'react-reconciliation');
       state = await waitForArticle(client, '/ja/blog/react-reconciliation', switchedPost);
       await client.command('Runtime.evaluate', {
@@ -487,6 +514,11 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, p
       .map((event) => new URL(event.params.request.url).pathname)
       .filter((requestPath) => requestPath.startsWith('/blog/content/'));
     return { initialState, state, errors, markdownRequests, switchMarkdownRequests, positionRatio };
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Browser startup failed')) {
+      throw new Error(`${error.message}${browserStderr.trim() ? `; stderr: ${browserStderr.trim()}` : ''}`);
+    }
+    throw error;
   } finally {
     client?.close();
     try {
@@ -496,6 +528,16 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, p
     }
     await delay(100);
     rmSync(userDataDir, { recursive: true, force: true });
+  }
+}
+
+async function runBrowserPage(browserPath, pathname, width, persistedLanguage, positionMode) {
+  try {
+    return await runBrowserPageOnce(browserPath, pathname, width, persistedLanguage, positionMode);
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.startsWith('Browser startup failed')) throw error;
+    // ponytail: one startup retry; use a browser driver if raw CDP startup remains flaky.
+    return runBrowserPageOnce(browserPath, pathname, width, persistedLanguage, positionMode);
   }
 }
 
