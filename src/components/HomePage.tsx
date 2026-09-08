@@ -49,7 +49,6 @@ export default function HomePage({ locale }: { locale?: Locale } = {}) {
               <div className="mb-12 flex flex-wrap gap-x-4 gap-y-2 font-mono text-xs font-medium tracking-[0.14em] text-muted-foreground">
                 <span>{t('blog.sampleArchive')}</span>
                 <span>{formatArchiveDate(featuredArticle.date, activeLanguage === 'ko' ? 'ko-KR' : activeLanguage === 'ja' ? 'ja-JP' : 'en-US')}</span>
-                <span>{featuredArticle.readTime}{activeLanguage === 'ja' ? '' : ' '}{t('blog.readTime')}</span>
                 <span>{activeLanguage.toUpperCase()}</span>
               </div>
               <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">

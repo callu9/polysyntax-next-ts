@@ -118,7 +118,7 @@ function BlogArchive({ locale }: { locale?: Locale }) {
                 <article key={article.id} className="group grid gap-5 py-8 md:grid-cols-[10rem_1fr] md:gap-10">
                   <div className="font-mono text-xs font-medium tracking-[0.14em] text-muted-foreground">
                     <p>{t('blog.sampleArchive')}</p><p>{formatArchiveDate(article.date, dateLocale)}</p>
-                    <p className="mt-2">{article.readTime}{activeLanguage === 'ja' ? '' : ' '}{t('blog.readTime')}</p><p className="mt-2">{article.category}</p>
+                    <p className="mt-2">{article.category}</p>
                   </div>
                   <div>
                     <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl"><Link href={href(`/blog/${article.id}`)} className="transition-colors group-hover:text-primary">{article.title}</Link></h2>
