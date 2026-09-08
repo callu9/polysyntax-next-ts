@@ -2,15 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { getAllBlogPosts } from '@/content/blog/metadata';
-import { getBlogFilterOptions, filterBlogPosts } from '@/lib/blogDiscovery';
+import { getBlogFilterOptions, filterBlogPosts, getCollapsedTagOptions } from '@/lib/blogDiscovery';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useLanguageStore } from '@/store/languageStore';
 import { getLocaleFromPath, localePath, type Locale } from '@/lib/localeRoutes';
 import { formatArchiveDate } from '@/lib/dateFormatting';
 
 const PAGE_SIZE = 6;
+const COLLAPSED_TAG_COUNT = 8;
 
 export default function BlogArchivePage({ locale }: { locale?: Locale } = {}) {
   return (
@@ -38,6 +39,9 @@ function BlogArchive({ locale }: { locale?: Locale }) {
   const result = filterBlogPosts(articles, { query, category, tag, page: requestedPage, pageSize: PAGE_SIZE });
   const dateLocale = activeLanguage === 'ko' ? 'ko-KR' : activeLanguage === 'ja' ? 'ja-JP' : 'en-US';
   const hasFilters = Boolean(query || category || tag || result.page > 1);
+  const [tagsExpanded, setTagsExpanded] = useState(false);
+  const visibleTags = tagsExpanded ? options.tags : getCollapsedTagOptions(options.tags, tag, COLLAPSED_TAG_COUNT);
+  const hiddenTagCount = options.tags.length - COLLAPSED_TAG_COUNT;
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null);
   const previousPage = useRef(result.page);
 
@@ -82,26 +86,34 @@ function BlogArchive({ locale }: { locale?: Locale }) {
           <p aria-live="polite" className="text-sm text-muted-foreground">{result.total} {t('blog.results')} · {activeLanguage.toUpperCase()}</p>
         </div>
 
-        <div className="grid gap-4 border-b border-border py-6 md:grid-cols-[1.5fr_1fr_1fr_auto] md:items-end">
-          <div>
-            <label htmlFor="article-search" className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('blog.searchPlaceholder')}</label>
-            <input id="article-search" type="search" value={query} onChange={(event) => updateQuery('q', event.target.value)} placeholder={t('blog.searchPlaceholder')} className="min-h-11 w-full border border-border bg-card px-3 py-2 text-sm outline-none transition-colors focus:border-primary" />
+        <div className="border-b border-border py-8">
+          <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="w-full max-w-2xl">
+              <label htmlFor="article-search" className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('blog.searchPlaceholder')}</label>
+              <input id="article-search" type="search" value={query} onChange={(event) => updateQuery('q', event.target.value)} placeholder={t('blog.searchPlaceholder')} className="min-h-11 w-full border border-border bg-card px-3 py-2 text-sm outline-none transition-colors focus:border-primary" />
+            </div>
+            {hasFilters && <button type="button" onClick={clearFilters} className="min-h-11 shrink-0 border border-border px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-secondary">{t('blog.clearFilters')}</button>}
           </div>
-          <div>
+
+          <div className="mt-6">
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('blog.category')}</p>
             <div className="flex flex-wrap gap-2" role="group" aria-label={t('blog.category')}>
               <Link href={buildHref({ category: '' })} aria-current={!category ? 'page' : undefined} className={`min-h-11 border px-3 py-2 text-sm ${!category ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}>{t('blog.allCategories')}</Link>
               {options.categories.map((option) => <Link key={option.id} href={buildHref({ category: option.id })} aria-current={category === option.id ? 'page' : undefined} className={`min-h-11 border px-3 py-2 text-sm ${category === option.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}>{option.label}</Link>)}
             </div>
           </div>
-          <div>
+          <div className="mt-6">
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('blog.tag')}</p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label={t('blog.tag')}>
+            <div id="article-tag-options" className="flex flex-wrap gap-2" role="group" aria-label={t('blog.tag')}>
               <Link href={buildHref({ tag: '' })} aria-current={!tag ? 'page' : undefined} className={`min-h-11 border px-3 py-2 text-sm ${!tag ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}>{t('blog.allTags')}</Link>
-              {options.tags.map((option) => <Link key={option.id} href={buildHref({ tag: option.id })} aria-current={tag === option.id ? 'page' : undefined} className={`min-h-11 border px-3 py-2 text-sm ${tag === option.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}>#{option.label}</Link>)}
+              {visibleTags.map((option) => <Link key={option.id} href={buildHref({ tag: option.id })} aria-current={tag === option.id ? 'page' : undefined} className={`min-h-11 border px-3 py-2 text-sm ${tag === option.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-secondary'}`}>#{option.label}</Link>)}
+              {hiddenTagCount > 0 && (
+                <button type="button" aria-expanded={tagsExpanded} aria-controls="article-tag-options" onClick={() => setTagsExpanded((expanded) => !expanded)} className="min-h-11 border border-border px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-secondary">
+                  {tagsExpanded ? `${t('blog.showLessTags')} ↑` : `${t('blog.showMoreTags')} (${hiddenTagCount}) ↓`}
+                </button>
+              )}
             </div>
           </div>
-          {hasFilters && <button type="button" onClick={clearFilters} className="min-h-11 border border-border px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-secondary">{t('blog.clearFilters')}</button>}
         </div>
 
         <h2 ref={resultsHeadingRef} id="article-results" tabIndex={-1} className="sr-only">{t('blog.resultsHeading')}</h2>

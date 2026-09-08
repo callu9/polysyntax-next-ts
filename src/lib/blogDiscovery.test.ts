@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { BlogPost } from '@/content/blog/metadata';
-import { filterBlogPosts, getBlogFilterOptions, getHomeEditorial } from './blogDiscovery.ts';
+import { filterBlogPosts, getBlogFilterOptions, getCollapsedTagOptions, getHomeEditorial } from './blogDiscovery.ts';
 
 const posts: BlogPost[] = [
   {
@@ -64,4 +64,11 @@ test('editorial, category, and tag sorting use deterministic tie breakers', () =
     categories: [{ id: 'a', label: 'A' }, { id: 'ui', label: 'UI' }],
     tags: [{ id: 'alpha', label: 'Alpha' }, { id: 'same', label: 'Same' }],
   });
+});
+
+test('collapsed tag filters keep the active option visible', () => {
+  const tags = ['one', 'two', 'three', 'four', 'five'].map((id) => ({ id, label: id }));
+
+  assert.deepEqual(getCollapsedTagOptions(tags, '', 3), tags.slice(0, 3));
+  assert.deepEqual(getCollapsedTagOptions(tags, 'five', 3), [tags[0], tags[1], tags[4]]);
 });
