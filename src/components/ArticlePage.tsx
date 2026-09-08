@@ -157,6 +157,7 @@ export default function ArticlePage({ initialArticle, initialContent, locale }: 
     if (isInitialSnapshot && snapshot.article.language !== activeLanguage) return;
 
     setLanguage(snapshot.article.language);
+    document.documentElement.lang = snapshot.article.language;
 
     const committedPath = routeLanguage !== snapshot.article.language
       ? changeLocalePath(pathname, snapshot.article.language)
@@ -173,14 +174,21 @@ export default function ArticlePage({ initialArticle, initialContent, locale }: 
     }
     pendingPosition.current = position;
 
+    let cancelled = false;
     const frame = window.requestAnimationFrame(() => {
-      pendingPosition.current = null;
-      if (articleRef.current) restoreReadingPosition(articleRef.current, position);
-      if (committedPath) rememberReadingTransition(snapshot.article.id, snapshot.article.language, position);
-      commitRoute();
+      void document.fonts.ready.then(() => {
+        if (cancelled) return;
+        pendingPosition.current = null;
+        if (articleRef.current) restoreReadingPosition(articleRef.current, position);
+        if (committedPath) rememberReadingTransition(snapshot.article.id, snapshot.article.language, position);
+        commitRoute();
+      });
     });
 
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+    };
   }, [activeLanguage, initialArticle.slug, languageStoreHydrated, pathname, rememberReadingTransition, routeLanguage, router, setLanguage, snapshot, takeReadingTransition]);
 
   const article = snapshot.article;

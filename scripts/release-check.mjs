@@ -415,7 +415,11 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, p
       if (!selection.result?.value) throw new Error('Japanese language menu item was not found');
       const switchedPost = posts.ja.find((post) => post.id === 'react-reconciliation');
       state = await waitForArticle(client, '/ja/blog/react-reconciliation', switchedPost);
-      await delay(500);
+      await client.command('Runtime.evaluate', {
+        expression: 'document.fonts.ready.then(() => true)',
+        awaitPromise: true,
+        returnByValue: true,
+      });
       state = await getBrowserState(client);
       switchMarkdownRequests = client.events
         .slice(switchEventOffset)
