@@ -176,12 +176,16 @@ export default function ArticlePage({ initialArticle, initialContent, locale }: 
 
     let cancelled = false;
     const frame = window.requestAnimationFrame(() => {
+      if (committedPath) {
+        rememberReadingTransition(snapshot.article.id, snapshot.article.language, position);
+        commitRoute();
+        return;
+      }
+
       void document.fonts.ready.then(() => {
         if (cancelled) return;
         pendingPosition.current = null;
         if (articleRef.current) restoreReadingPosition(articleRef.current, position);
-        if (committedPath) rememberReadingTransition(snapshot.article.id, snapshot.article.language, position);
-        commitRoute();
       });
     });
 
