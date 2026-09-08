@@ -231,7 +231,7 @@ export default function ArticlePage({ initialArticle, initialContent, locale }: 
           <div className="mb-6 flex flex-wrap gap-x-4 gap-y-2 font-mono text-xs font-medium tracking-[0.14em] text-muted-foreground">
             <span>{articleTranslations?.blog.sampleArchive}</span><span>{article.language.toUpperCase()}</span>
             <span>{formatArchiveDate(article.date, article.language === 'ko' ? 'ko-KR' : article.language === 'ja' ? 'ja-JP' : 'en-US')}</span>
-            <span>{article.author}</span><span>{article.readTime}{article.language === 'ja' ? '' : ' '}{articleTranslations?.blog.readTime}</span>
+            <span>{article.author}</span>
           </div>
           <h1 className="mb-8 text-4xl font-semibold tracking-tight sm:text-5xl">{article.title}</h1>
           <div className="border-t border-border pt-10"><ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{snapshot.content}</ReactMarkdown></div>

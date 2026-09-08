@@ -1,32 +1,32 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { BlogPost } from '@/content/blog/metadata';
-import { filterBlogPosts, getBlogFilterOptions, getHomeEditorial } from './blogDiscovery.ts';
+import { filterBlogPosts, getBlogFilterOptions, getCollapsedTagOptions, getHomeEditorial } from './blogDiscovery.ts';
 
 const posts: BlogPost[] = [
   {
-    id: 'container-queries', title: 'Container Queries', excerpt: 'CSS layout primitives', date: '2025-01-03', author: 'Team', readTime: 4, slug: 'container-en', language: 'en', category: 'CSS', categoryId: 'css', tags: ['css', 'layout'], tagIds: ['css', 'layout'],
+    id: 'container-queries', title: 'Container Queries', excerpt: 'CSS layout primitives', date: '2025-01-03', author: 'Team', slug: 'container-en', language: 'en', category: 'CSS', categoryId: 'css', tags: ['css', 'layout'], tagIds: ['css', 'layout'],
   },
   {
-    id: 'performance-budget', title: 'Performance Budget', excerpt: 'Keep a fast web experience', date: '2025-01-02', author: 'Team', readTime: 4, slug: 'performance-en', language: 'en', category: 'Performance', categoryId: 'performance', tags: ['performance'], tagIds: ['performance'],
+    id: 'performance-budget', title: 'Performance Budget', excerpt: 'Keep a fast web experience', date: '2025-01-02', author: 'Team', slug: 'performance-en', language: 'en', category: 'Performance', categoryId: 'performance', tags: ['performance'], tagIds: ['performance'],
   },
   {
-    id: 'component-api', title: 'Component APIs', excerpt: 'Design reusable boundaries', date: '2025-01-01', author: 'Team', readTime: 4, slug: 'component-en', language: 'en', category: 'Architecture', categoryId: 'architecture', tags: ['react', 'api'], tagIds: ['react', 'api'],
+    id: 'component-api', title: 'Component APIs', excerpt: 'Design reusable boundaries', date: '2025-01-01', author: 'Team', slug: 'component-en', language: 'en', category: 'Architecture', categoryId: 'architecture', tags: ['react', 'api'], tagIds: ['react', 'api'],
   },
   {
-    id: 'css-testing', title: 'Testing CSS', excerpt: 'CSS regression checks', date: '2024-12-01', author: 'Team', readTime: 4, slug: 'css-testing-en', language: 'en', category: 'CSS', categoryId: 'css', tags: ['css', 'testing'], tagIds: ['css', 'testing'],
+    id: 'css-testing', title: 'Testing CSS', excerpt: 'CSS regression checks', date: '2024-12-01', author: 'Team', slug: 'css-testing-en', language: 'en', category: 'CSS', categoryId: 'css', tags: ['css', 'testing'], tagIds: ['css', 'testing'],
   },
 ];
 
 const tiedPosts: BlogPost[] = [
   {
-    id: 'zulu', title: 'Zulu', excerpt: '', date: '2025-01-01', author: 'Team', readTime: 4, slug: 'zulu-en', language: 'en', category: 'UI', categoryId: 'ui', tags: ['Same'], tagIds: ['same'],
+    id: 'zulu', title: 'Zulu', excerpt: '', date: '2025-01-01', author: 'Team', slug: 'zulu-en', language: 'en', category: 'UI', categoryId: 'ui', tags: ['Same'], tagIds: ['same'],
   },
   {
-    id: 'alpha', title: 'Alpha', excerpt: '', date: '2025-01-01', author: 'Team', readTime: 4, slug: 'alpha-en', language: 'en', category: 'UI', categoryId: 'ui', tags: ['Same'], tagIds: ['same'],
+    id: 'alpha', title: 'Alpha', excerpt: '', date: '2025-01-01', author: 'Team', slug: 'alpha-en', language: 'en', category: 'UI', categoryId: 'ui', tags: ['Same'], tagIds: ['same'],
   },
   {
-    id: 'beta', title: 'Beta', excerpt: '', date: '2025-01-01', author: 'Team', readTime: 4, slug: 'beta-en', language: 'en', category: 'A', categoryId: 'a', tags: ['Alpha'], tagIds: ['alpha'],
+    id: 'beta', title: 'Beta', excerpt: '', date: '2025-01-01', author: 'Team', slug: 'beta-en', language: 'en', category: 'A', categoryId: 'a', tags: ['Alpha'], tagIds: ['alpha'],
   },
 ];
 
@@ -64,4 +64,11 @@ test('editorial, category, and tag sorting use deterministic tie breakers', () =
     categories: [{ id: 'a', label: 'A' }, { id: 'ui', label: 'UI' }],
     tags: [{ id: 'alpha', label: 'Alpha' }, { id: 'same', label: 'Same' }],
   });
+});
+
+test('collapsed tag filters keep the active option visible', () => {
+  const tags = ['one', 'two', 'three', 'four', 'five'].map((id) => ({ id, label: id }));
+
+  assert.deepEqual(getCollapsedTagOptions(tags, '', 3), tags.slice(0, 3));
+  assert.deepEqual(getCollapsedTagOptions(tags, 'five', 3), [tags[0], tags[1], tags[4]]);
 });

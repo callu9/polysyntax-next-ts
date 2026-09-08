@@ -71,3 +71,12 @@ export function getBlogFilterOptions(posts: BlogPost[]): {
       .sort((a, b) => compareOptions(a, b, language)),
   };
 }
+
+export function getCollapsedTagOptions<T extends { id: string }>(tags: T[], activeTag: string, limit: number): T[] {
+  const visible = tags.slice(0, Math.max(0, Math.floor(limit)));
+  const active = activeTag && !visible.some((option) => option.id === activeTag)
+    ? tags.find((option) => option.id === activeTag)
+    : undefined;
+  if (active && visible.length) visible[visible.length - 1] = active;
+  return visible;
+}
