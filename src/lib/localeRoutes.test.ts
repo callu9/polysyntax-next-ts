@@ -7,7 +7,6 @@ import {
   getLocaleFromPath,
   isLocale,
   localePath,
-  profileRedirectPath,
   resolveArticleLanguage,
   resolveLanguageSwitch,
   stripLocale,
@@ -44,17 +43,10 @@ test('locale replacement preserves the path without nesting locale segments', ()
   assert.equal(changeLocalePath('/blog/react-reconciliation', 'ja'), '/ja/blog/react-reconciliation');
 });
 
-test('indexable paths contain only locale canonical URLs', () => {
+test('indexable paths contain localized profile and other canonical URLs', () => {
   assert.deepEqual(getIndexablePaths(['first', 'second']), [
-    '/en', '/en/about', '/en/blog', '/en/blog/first', '/en/blog/second',
-    '/ko', '/ko/about', '/ko/blog', '/ko/blog/first', '/ko/blog/second',
-    '/ja', '/ja/about', '/ja/blog', '/ja/blog/first', '/ja/blog/second',
+    '/en', '/en/profile', '/en/about', '/en/blog', '/en/blog/first', '/en/blog/second',
+    '/ko', '/ko/profile', '/ko/about', '/ko/blog', '/ko/blog/first', '/ko/blog/second',
+    '/ja', '/ja/profile', '/ja/about', '/ja/blog', '/ja/blog/first', '/ja/blog/second',
   ]);
-});
-
-test('profile always redirects to the existing localized About destination', () => {
-  assert.equal(profileRedirectPath(), '/about');
-  assert.equal(profileRedirectPath('en'), '/en/about');
-  assert.equal(profileRedirectPath('ko'), '/ko/about');
-  assert.equal(profileRedirectPath('ja'), '/ja/about');
 });

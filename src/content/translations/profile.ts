@@ -1,0 +1,43 @@
+import { aboutTranslations } from './about.ts';
+
+export const profileTranslations = {
+  en: {
+    title: 'About the author',
+    publication: 'Author profile',
+    name: 'Frontend Team',
+    role: 'PolySyntax editorial team',
+    bio: aboutTranslations.en.description,
+    mission: aboutTranslations.en.mission,
+    missionDescription: aboutTranslations.en.missionDescription,
+    topicsTitle: aboutTranslations.en.topicsTitle,
+    topics: aboutTranslations.en.topics,
+    contact: aboutTranslations.en.contact,
+    contactEmail: aboutTranslations.en.contactEmail,
+  },
+  ko: {
+    title: '저자 소개',
+    publication: '저자 프로필',
+    name: 'Frontend Team',
+    role: 'PolySyntax 편집팀',
+    bio: aboutTranslations.ko.description,
+    mission: aboutTranslations.ko.mission,
+    missionDescription: aboutTranslations.ko.missionDescription,
+    topicsTitle: aboutTranslations.ko.topicsTitle,
+    topics: aboutTranslations.ko.topics,
+    contact: aboutTranslations.ko.contact,
+    contactEmail: aboutTranslations.ko.contactEmail,
+  },
+  ja: {
+    title: '著者について',
+    publication: '著者プロフィール',
+    name: 'Frontend Team',
+    role: 'PolySyntax編集チーム',
+    bio: aboutTranslations.ja.description,
+    mission: aboutTranslations.ja.mission,
+    missionDescription: aboutTranslations.ja.missionDescription,
+    topicsTitle: aboutTranslations.ja.topicsTitle,
+    topics: aboutTranslations.ja.topics,
+    contact: aboutTranslations.ja.contact,
+    contactEmail: aboutTranslations.ja.contactEmail,
+  },
+} as const;

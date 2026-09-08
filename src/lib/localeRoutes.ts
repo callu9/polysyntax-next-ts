@@ -33,10 +33,6 @@ export function changeLocalePath(pathname: string, locale: Locale): string {
   return localePath(locale, stripLocale(pathname));
 }
 
-export function profileRedirectPath(locale?: Locale): string {
-  return locale ? localePath(locale, '/about') : '/about';
-}
-
 export function resolveLanguageSwitch(pathname: string, locale: Locale, query: string):
   | { type: 'load-article' }
   | { type: 'navigate'; href: string } {
@@ -47,6 +43,7 @@ export function resolveLanguageSwitch(pathname: string, locale: Locale, query: s
 export function getIndexablePaths(postIds: string[]): string[] {
   return LOCALES.flatMap((locale) => [
     localePath(locale, '/'),
+    localePath(locale, '/profile'),
     localePath(locale, '/about'),
     localePath(locale, '/blog'),
     ...postIds.map((id) => localePath(locale, `/blog/${id}`)),
