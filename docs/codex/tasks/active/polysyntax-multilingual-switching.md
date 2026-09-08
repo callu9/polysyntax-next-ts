@@ -1,6 +1,6 @@
 # PolySyntax Multilingual Switching
 
-- Status: core implementation complete; local CI wait hardening verified, remote CI pending commit/push
+- Status: core implementation and CI wait hardening complete; remote CI passed
 - PM: `.ouroboros/pm.md`
 - Validated Seed: `.ouroboros/seed.yaml` (QA 0.94, iteration 2/5)
 - Implementation Plan: `docs/superpowers/plans/2026-08-13-polysyntax-multilingual-switching.md`
@@ -35,9 +35,9 @@
 ## Post-completion CI Wait Hardening
 
 - Acceptance: browser navigation and language selection wait for observable readiness instead of fixed delays; article timeouts report pathname, language, and title state.
-- Target: `21800e0f2bf0` plus `scripts/release-check.mjs` diff SHA-256 `6699e408c0cb95db3f3abd8742ee4ff29c44e564871f8a8d58523599077d7a9e`.
+- Target: code commit `fcbad9efc8ace8bd0bc89a1e73ec7abfefcdbcca`; `scripts/release-check.mjs` diff SHA-256 `6699e408c0cb95db3f3abd8742ee4ff29c44e564871f8a8d58523599077d7a9e`.
 - Environment: local macOS, Node 24.18.0, npm 11.16.0, Chrome headless, 2026-09-08 KST, verifier Codex.
-- Limitations: remote CI was not run; existing module-type and external-lockfile warnings remain out of scope.
+- Limitations: existing module-type and external-lockfile warnings remain out of scope.
 
 | Check | Result |
 | --- | --- |
@@ -53,8 +53,8 @@
 | Scoped diff check | PASS — `git diff --check -- scripts/release-check.mjs` |
 | Repository-wide diff check | FAIL (pre-existing, out of scope) — `README.md` lines 143, 170, and 193 contain trailing whitespace |
 | Final release check | PASS — `BASE_URL=http://127.0.0.1:41783 SITE_URL=http://127.0.0.1:41783 npm run check:release`; 13/13 passed after the production server was started with matching `SITE_URL` |
-| Remote CI | UNVERIFIED — no commit or push was requested |
+| Remote CI | PASS — PR #19 `release-readiness`, run `34191501798`, completed in 1m16s for code commit `fcbad9efc8ace8bd0bc89a1e73ec7abfefcdbcca` |
 
 ## Handoff
 
-Implementation and Dark Systems editorial styling are committed. The CI wait hardening is locally verified but uncommitted; preserve all unrelated uncommitted user changes and run remote CI after commit/push.
+Implementation, Dark Systems editorial styling, and CI wait hardening are committed. PR #19 is open with remote CI passing; preserve all unrelated uncommitted user changes.
