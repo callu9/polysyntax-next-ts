@@ -1,6 +1,6 @@
 # PolySyntax Multilingual Switching
 
-- Status: core implementation and CI wait hardening complete; Chromium startup retry under final CI verification
+- Status: core implementation and CI wait hardening complete; remote CI passed
 - PM: `.ouroboros/pm.md`
 - Validated Seed: `.ouroboros/seed.yaml` (QA 0.94, iteration 2/5)
 - Implementation Plan: `docs/superpowers/plans/2026-08-13-polysyntax-multilingual-switching.md`
@@ -56,7 +56,8 @@
 | Remote CI | PASS — PR #19 `release-readiness`, run `34191501798`, completed in 1m16s for code commit `fcbad9efc8ace8bd0bc89a1e73ec7abfefcdbcca` |
 | Remote CI startup regression | FAIL — run `34191673700` completed 12/13 after the first Chromium process did not create `DevToolsActivePort`; the next four browser launches passed |
 | Browser startup retry injection | PASS — a wrapper forced the first Chromium launch to exit, then the bounded one-time retry completed the full release check 13/13 |
+| Remote CI startup retry | PASS — PR #19 `release-readiness`, run `34192292036`, completed in 1m8s for code commit `38eaf4c` |
 
 ## Handoff
 
-Implementation, Dark Systems editorial styling, and CI wait hardening are committed. PR #19 is open; the bounded Chromium startup retry is awaiting final remote CI. Preserve all unrelated uncommitted user changes.
+Implementation, Dark Systems editorial styling, and CI wait hardening are committed. PR #19 is open with remote CI passing; preserve all unrelated uncommitted user changes.
