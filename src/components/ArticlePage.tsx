@@ -165,21 +165,23 @@ export default function ArticlePage({ initialArticle, initialContent, locale }: 
       if (committedPath) router.replace(`${committedPath}${window.location.search}`, { scroll: false });
     };
 
-    const position = pendingPosition.current;
-    pendingPosition.current = null;
+    const position = pendingPosition.current ?? takeReadingTransition(snapshot.article.id, snapshot.article.language);
     if (!articleRef.current || !position) {
+      pendingPosition.current = null;
       commitRoute();
       return;
     }
+    pendingPosition.current = position;
 
     const frame = window.requestAnimationFrame(() => {
+      pendingPosition.current = null;
       if (articleRef.current) restoreReadingPosition(articleRef.current, position);
       if (committedPath) rememberReadingTransition(snapshot.article.id, snapshot.article.language, position);
       commitRoute();
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [activeLanguage, initialArticle.slug, languageStoreHydrated, pathname, rememberReadingTransition, routeLanguage, router, setLanguage, snapshot]);
+  }, [activeLanguage, initialArticle.slug, languageStoreHydrated, pathname, rememberReadingTransition, routeLanguage, router, setLanguage, snapshot, takeReadingTransition]);
 
   const article = snapshot.article;
   const articleTranslations = getTranslations(article.language);

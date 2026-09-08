@@ -205,13 +205,23 @@ async function getBrowserState(client) {
     returnByValue: true,
     expression: `(() => {
       const article = document.querySelector('article');
+      const headings = [...(article?.querySelectorAll('h2, h3') ?? [])];
+      const heading = headings[2];
+      const articleTop = article ? window.scrollY + article.getBoundingClientRect().top : null;
       return {
         pathname: window.location.pathname,
         lang: document.documentElement.lang,
         h1: document.querySelector('h1')?.textContent ?? '',
         body: article?.textContent ?? '',
         storage: localStorage.getItem('language-storage'),
+        scrollY: window.scrollY,
+        headingTop: heading?.getBoundingClientRect().top ?? null,
+        articleTop,
+        articleHeight: article?.scrollHeight ?? null,
+        documentHeight: document.documentElement.scrollHeight,
         viewport: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        scrollCalls: window.__polySyntaxScrollCalls ?? [],
         overflow: document.documentElement.scrollWidth > window.innerWidth,
       };
     })()`,
@@ -307,7 +317,7 @@ function eventDetails(event) {
   return null;
 }
 
-async function runBrowserPage(browserPath, pathname, width, persistedLanguage, switchLanguage) {
+async function runBrowserPage(browserPath, pathname, width, persistedLanguage, positionMode) {
   const userDataDir = mkdtempSync(join(tmpdir(), 'polysyntax-release-browser-'));
   const child = spawn(browserPath, [
     '--headless=new',
@@ -356,7 +366,33 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, s
     const initialState = await waitForArticle(client, expectedPathname, expectedPost);
     let state = initialState;
     let switchMarkdownRequests = [];
-    if (switchLanguage) {
+    let positionRatio = null;
+    if (positionMode) {
+      const positionResult = await client.command('Runtime.evaluate', {
+        expression: `(() => {
+          const article = document.querySelector('article');
+          if (!article) return;
+          window.__polySyntaxScrollCalls = [];
+          const scrollTo = window.scrollTo.bind(window);
+          window.scrollTo = (...args) => { window.__polySyntaxScrollCalls.push(args); return scrollTo(...args); };
+          if (${JSON.stringify(positionMode)} === 'heading') {
+            const heading = article.querySelectorAll('h2, h3')[2];
+            if (heading) window.scrollTo({ top: window.scrollY + heading.getBoundingClientRect().top });
+            return;
+          }
+          const querySelectorAll = Element.prototype.querySelectorAll;
+          Element.prototype.querySelectorAll = function (selectors) {
+            return this === article && selectors === 'h2, h3' ? [] : querySelectorAll.call(this, selectors);
+          };
+          const articleTop = window.scrollY + article.getBoundingClientRect().top;
+          const ratio = 0.5;
+          window.scrollTo({ top: articleTop + ratio * Math.max(0, article.scrollHeight - window.innerHeight) });
+          return { ratio: (window.scrollY - articleTop) / Math.max(1, article.scrollHeight - window.innerHeight) };
+        })()`,
+        returnByValue: true,
+      });
+      positionRatio = positionResult.result?.value?.ratio ?? null;
+      await delay(50);
       const switchEventOffset = client.events.length;
       const trigger = await client.command('Runtime.evaluate', {
         returnByValue: true,
@@ -379,6 +415,8 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, s
       if (!selection.result?.value) throw new Error('Japanese language menu item was not found');
       const switchedPost = posts.ja.find((post) => post.id === 'react-reconciliation');
       state = await waitForArticle(client, '/ja/blog/react-reconciliation', switchedPost);
+      await delay(500);
+      state = await getBrowserState(client);
       switchMarkdownRequests = client.events
         .slice(switchEventOffset)
         .filter((event) => event.method === 'Network.requestWillBeSent')
@@ -391,7 +429,7 @@ async function runBrowserPage(browserPath, pathname, width, persistedLanguage, s
       .filter((event) => event.method === 'Network.requestWillBeSent')
       .map((event) => new URL(event.params.request.url).pathname)
       .filter((requestPath) => requestPath.startsWith('/blog/content/'));
-    return { initialState, state, errors, markdownRequests, switchMarkdownRequests };
+    return { initialState, state, errors, markdownRequests, switchMarkdownRequests, positionRatio };
   } finally {
     client?.close();
     try {
@@ -409,7 +447,7 @@ const koreanBrowserResults = [];
 for (const width of [375, 1440]) {
   await check(`browser.${width}px`, async () => {
     requireCondition(browser, 'No supported headless Chromium binary is installed');
-    const result = await runBrowserPage(browser, '/ko/blog/react-reconciliation', width, undefined, width === 375 ? 'ja' : undefined);
+    const result = await runBrowserPage(browser, '/ko/blog/react-reconciliation', width, undefined, width === 375 ? 'heading' : undefined);
     koreanBrowserResults.push(result);
     const post = posts.ko.find((candidate) => candidate.id === 'react-reconciliation');
     requireCondition(result.initialState?.viewport === width, `browser ${width}px: viewport was not applied`);
@@ -422,11 +460,34 @@ for (const width of [375, 1440]) {
     if (width === 375) {
       requireCondition(result.state?.pathname === '/ja/blog/react-reconciliation', 'KO to JA switch did not update the URL');
       requireCondition(result.state?.lang === 'ja', 'KO to JA switch did not update document language');
+      if (result.positionRatio === null) {
+        requireCondition(Math.abs(result.state?.headingTop ?? Number.POSITIVE_INFINITY) <= 1, `KO to JA heading did not align at viewport top: ${result.state?.headingTop}`);
+      } else {
+        const expectedScroll = Math.min(
+          Math.max(0, result.state?.articleTop + result.positionRatio * Math.max(0, result.state?.articleHeight - result.state?.viewportHeight)),
+          Math.max(0, result.state?.documentHeight - result.state?.viewportHeight),
+        );
+        requireCondition(Math.abs((result.state?.scrollY ?? Number.POSITIVE_INFINITY) - expectedScroll) <= 1, `KO to JA ratio fallback was not restored after remount: expected ${expectedScroll}, got ${result.state?.scrollY}`);
+      }
       requireCondition(result.switchMarkdownRequests.filter((requestPath) => requestPath.endsWith('-ja')).length === 1, 'KO to JA switch did not make exactly one JA Markdown request');
       requireCondition(result.switchMarkdownRequests.filter((requestPath) => requestPath.endsWith('-ko')).length === 0, 'KO to JA switch made a stale KO Markdown request');
     }
   });
 }
+
+await check('browser.ratio-fallback', async () => {
+  requireCondition(browser, 'No supported headless Chromium binary is installed');
+  const result = await runBrowserPage(browser, '/ko/blog/react-reconciliation', 375, undefined, 'ratio');
+  requireCondition(result.state?.pathname === '/ja/blog/react-reconciliation', 'ratio fallback switch did not update the URL');
+  requireCondition(result.positionRatio !== null, `ratio fallback setup did not capture a ratio: ${result.positionRatio}`);
+  const expectedScroll = Math.min(
+    Math.max(0, result.state?.articleTop + result.positionRatio * Math.max(0, result.state?.articleHeight - result.state?.viewportHeight)),
+    Math.max(0, result.state?.documentHeight - result.state?.viewportHeight),
+  );
+  const restoredScroll = result.state?.scrollCalls?.at(-1)?.[0]?.top;
+  requireCondition(Math.abs((restoredScroll ?? Number.POSITIVE_INFINITY) - expectedScroll) <= 1, `ratio fallback restore call was wrong: expected ${expectedScroll}, got ${restoredScroll}`);
+  requireCondition(Math.abs((result.state?.scrollY ?? Number.POSITIVE_INFINITY) - expectedScroll) <= 5, `ratio fallback was not stable after remount: expected ${expectedScroll}, got ${result.state?.scrollY}`);
+});
 
 await check('browser.legacy-persisted-ja', async () => {
   requireCondition(browser, 'No supported headless Chromium binary is installed');
