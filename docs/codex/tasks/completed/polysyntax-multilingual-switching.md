@@ -16,7 +16,7 @@
 | `npm audit --omit=dev` | PASS — 0 vulnerabilities |
 | `npm audit` | PASS — 0 vulnerabilities |
 | `git diff --check` | PASS — exit 0 |
-| Path/status/content checks | PASS — active file absent, completed file present, only this task rename staged, and stale PR19/remote-CI claims absent |
+| Path/status/content checks | PASS — committed task-record move verified from `docs/codex/tasks/active/polysyntax-multilingual-switching.md` to `docs/codex/tasks/completed/polysyntax-multilingual-switching.md`; no unrelated files changed |
 
 ## Handoff
 
