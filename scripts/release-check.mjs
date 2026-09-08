@@ -72,9 +72,9 @@ function assertSingleArticleStructuredData(pathname, body) {
   );
 }
 
-await check('canonical-routes-45', async () => {
+await check('canonical-routes-48', async () => {
   const paths = getIndexablePaths(posts.en.map((post) => post.id));
-  requireCondition(paths.length === 45, `expected 45 canonical routes, found ${paths.length}`);
+  requireCondition(paths.length === 48, `expected 48 canonical routes, found ${paths.length}`);
 
   const responses = await Promise.all(paths.map(async (pathname) => ({ pathname, ...(await get(pathname)) })));
   for (const { pathname, response, body } of responses) {
@@ -103,9 +103,9 @@ await check('server-article-html-36', async () => {
   }
 });
 
-await check('legacy-routes-15', async () => {
-  const paths = ['/', '/about', '/blog', ...posts.en.map((post) => `/blog/${post.id}`)];
-  requireCondition(paths.length === 15, `expected 15 legacy routes, found ${paths.length}`);
+await check('legacy-routes-16', async () => {
+  const paths = ['/', '/profile', '/about', '/blog', ...posts.en.map((post) => `/blog/${post.id}`)];
+  requireCondition(paths.length === 16, `expected 16 legacy routes, found ${paths.length}`);
   const responses = await Promise.all(paths.map(async (pathname) => ({ pathname, ...(await get(pathname)) })));
   for (const { pathname, response, body } of responses) {
     requireCondition(response.status === 200, `${pathname}: expected 200, got ${response.status}`);
@@ -126,20 +126,6 @@ await check('markdown-routes-36', async () => {
   }
 });
 
-await check('profile-redirect-policy', async () => {
-  const redirects = [
-    ['/profile', '/about'],
-    ['/en/profile', '/en/about'],
-    ['/ko/profile', '/ko/about'],
-    ['/ja/profile', '/ja/about'],
-  ];
-  for (const [pathname, expectedPath] of redirects) {
-    const { response } = await get(pathname, { redirect: 'manual' });
-    requireCondition(response.status >= 300 && response.status < 400, `${pathname}: expected redirect, got ${response.status}`);
-    requireCondition(new URL(response.headers.get('location') ?? '', origin).toString() === urlFor(expectedPath), `${pathname}: unexpected Location`);
-  }
-});
-
 await check('regression-routes', async () => {
   for (const pathname of ['/robots.txt', '/sitemap.xml', '/icon.svg', '/opengraph-image.svg', '/blog?page=2', '/ko/blog?page=2&category=rendering']) {
     const { response } = await get(pathname);
@@ -149,7 +135,7 @@ await check('regression-routes', async () => {
   const { response: sitemapResponse, body: sitemap } = await get('/sitemap.xml');
   const sitemapLocations = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
   const expectedSitemap = new Set(getIndexablePaths(posts.en.map((post) => post.id)).map(urlFor));
-  requireCondition(sitemapLocations.length === 45, `sitemap must contain 45 canonical URLs, found ${sitemapLocations.length}`);
+  requireCondition(sitemapLocations.length === 48, `sitemap must contain 48 canonical URLs, found ${sitemapLocations.length}`);
   requireCondition(sitemapLocations.every((location) => expectedSitemap.has(location)), 'sitemap must contain only canonical URLs');
   requireCondition(sitemapLocations.every((location) => location.startsWith(origin)), 'sitemap URLs must use the configured canonical host');
   requireCondition(sitemapResponse.headers.get('content-type')?.includes('xml'), 'sitemap must be XML');
