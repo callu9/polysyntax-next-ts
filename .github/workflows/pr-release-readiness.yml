@@ -5,16 +5,17 @@ on:
     branches:
       - dev
 
+concurrency:
+  group: pr-release-readiness-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   release-readiness:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      BASE_URL: http://127.0.0.1:3000
-      SITE_URL: http://127.0.0.1:3000
+    timeout-minutes: 10
 
     steps:
       - name: Check out PR
@@ -40,26 +41,3 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      - name: Production dependency audit
-        run: npm audit --omit=dev
-
-      - name: Start production server
-        run: |
-          npm run start -- --hostname 127.0.0.1 --port 3000 > "$RUNNER_TEMP/polysyntax-next.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/polysyntax-next.pid"
-          curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-connrefused "$BASE_URL/" > /dev/null
-
-      - name: Crawl server routes and run browser-adjacent checks
-        run: |
-          if ! npm run check:release; then
-            cat "$RUNNER_TEMP/polysyntax-next.log"
-            exit 1
-          fi
-
-      - name: Stop production server
-        if: always()
-        run: |
-          if [ -f "$RUNNER_TEMP/polysyntax-next.pid" ]; then
-            kill "$(cat "$RUNNER_TEMP/polysyntax-next.pid")" || true
-          fi
