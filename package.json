@@ -10,6 +10,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types",
+    "check": "npm test && npm run lint && npm run typecheck && npm run build",
     "check:release": "node --experimental-strip-types scripts/release-check.mjs"
   },
   "dependencies": {
